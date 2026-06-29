@@ -1,117 +1,94 @@
-# 📚 Inglenook & Marginalia: The Cozy AI Reading Suite
+# 🏡 Inglenook: Your Cozy Illustrated Reading Room & Tracker
 
-Welcome to **Inglenook**, a beautiful, local-first reading suite for book lovers. It combines a cozy, interactive illustrated reading room with **Marginalia**—an AI-powered margin notes annotator—and a unified **Reading Vault** dashboard to capture, catalog, and enrich your reading life.
+Welcome to **Inglenook**, a beautiful, local-first interactive reading room and book tracking application designed to make cataloging your library a cozy, tactile experience. 
 
-Everything runs entirely in your browser. With **local-first privacy**, your books, favorite quotes, reading statistics, and API keys are stored securely in your browser's local storage—no tracking, no cloud databases, no logins required.
+Instead of dealing with boring tables and grids, Inglenook welcomes you into a virtual reading room. Everything is fully client-side and **local-first**—your books, reading goals, quotes, and history are saved directly in your browser's LocalStorage.
 
 ---
 
-## 🎨 Inside the Suite
+## 📸 Room & Feature Highlights
 
-### 1. Inglenook — Your Cozy Illustrated Reading Room (`inglenook.html`)
-*Escape into a quiet library. Catalog your books and watch your library grow.*
-* **Cozy Interactive Library UI:** Displays an illustrated reading room with bookshelf styling, a book detail drawer, and animated transitions.
-* **Pull-String Lamp Theme Toggle:** Click the hanging lamp pull-string to dim the lights and transition between a warm parchment-light mode and a rich espresso-dark mode.
-* **Open Library Lookup:** Search millions of books by title, author, or ISBN to instantly fetch covers, pages, and metadata.
-* **Smart Recommendations:** Explore curated bookshelves and dynamic search categories.
-* **Reading Stats & Charts:** Beautifully rendered local charts tracking your finished books, total pages read, genre breakdown, and daily progress.
+### 🌅 The Cozy Reading Room
+An illustrated, interactive room that reflects your real-world library. Click the hanging lamp pull-string to transition from warm daylight into dark mode.
 
-#### 📸 Room Visuals
-| 🌅 The Reading Room (Light Mode) | 🌌 The Reading Room (Dark Mode) |
+| ☀️ Daylight Room (Light Mode) | 🌙 Midnight Room (Dark Mode) |
 | :---: | :---: |
 | ![Inglenook Room](assets/inglenook_room.png) | ![Inglenook Room Dark](assets/inglenook_dark.png) |
 
-| 📊 Library Analytics & Charts |
-| :---: |
-| ![Inglenook Stats](assets/inglenook_stats.png) |
+---
+
+### 🐈 Mr. Whiskers: The Interactive Cat Companion (Hidden Feature!)
+Click the sleeping cat on the armchair to watch Mr. Whiskers wake up, crouch, leap onto the bookshelf, strut across it, swipe a book off, and jump back down to resume his nap.
+
+| 🐈 Strutting on the Shelf | 💥 Swiping a Book Off |
+| :---: | :---: |
+| ![Cat Struts](assets/cat_walking_on_shelf.png) | ![Cat Swipes](assets/cat_knocking_book.png) |
 
 ---
 
-### 2. Marginalia — AI Book Annotator (`index.html`)
-*Annotate your books with a personal AI scholar that writes directly in the margins.*
-* **PDF & Text Uploads:** Drag-and-drop PDF books or paste chapters directly into the reader.
-* **AI Margin Scribbles:** Send text sections to Gemini, OpenRouter, or OpenAI to generate contextual annotations, character analysis, historical context, or vocabulary definitions directly in the margins.
-* **Tactile Highlight Tools:** Highlight text passages with multiple ink-like highlighter colors (burgundy, gold, sage, blue).
-* **Export Options:** Instantly export your annotated text and margin notes as standard Markdown (`.md`) files.
+### 📊 Library Analytics & Discovery
+Explore curated lists, search for millions of books using the Open Library API, or check your reading statistics (genre donut charts, reading pace, page-count limits).
 
-#### 📸 Marginalia Workspace
-| ✍️ AI Annotation Layout |
-| :---: |
-| ![Marginalia Results](assets/marginalia_results.png) |
+| 🔍 Explore & Add | 📈 Library Statistics |
+| :---: | :---: |
+| ![Explore View](assets/inglenook_explore.png) | ![Stats View](assets/inglenook_stats.png) |
 
 ---
 
-### 3. The Reading Vault — Unified Dashboard (`reading-vault.html`)
-*The central dashboard combining tracking, quotes, goals, and annotations.*
-* **Comprehensive Bookshelf:** Track books across "Currently Reading", "TBR" (To Be Read), and "Finished" categories.
-* **Interactive Quotes Wall:** Pin your favorite quotes from books with page numbers, tags, and authors.
-* **Daily & Yearly Reading Goals:** Dynamic progress meters tracking your reading habits against customizable goals.
-* **Backup & Portability:** Import and export your entire vault as a single `.json` file to migrate between devices.
+## ✨ Cozy Interactive Mechanics & Easter Eggs
 
-#### 📸 Vault Visuals
-| 🏠 Home Dashboard | 💬 Interactive Quotes Wall |
-| :---: | :---: |
-| ![Reading Vault Home](assets/reading_vault_home.png) | ![Reading Vault Quotes](assets/reading_vault_quotes.png) |
+Inglenook is packed with hidden, interactive details:
 
-| 🧠 AI Annotation Center | 📊 Vault Stats Dashboard |
-| :---: | :---: |
-| ![Reading Vault Annotator](assets/reading_vault_annotator.png) | ![Reading Vault Stats](assets/reading_vault_stats.png) |
+* **🐈 Mr. Whiskers' Shelf Adventure:** Click the sleeping cat on the left armchair to trigger his shelf-climbing adventure. The book he knocks off falls to the floor with custom physics and bounces!
+* **💡 Pull-String Lamp:** A fully interactive pull-string hanging brass lamp that dims the room and toggles light/dark themes.
+* **☕ Tea Cup Pomodoro:** Click the steaming tea cup sitting next to your reading chair to start a 25-minute reading timer.
+* **🌦️ Geolocation Weather Sync:** Connects to the [Open-Meteo API](https://open-meteo.com/) (privacy-friendly, no keys required) to match the view outside your window with your actual local weather (rain, snow, clouds, or sun).
+* **🌿 Seasonal Plant:** The potted plant near the fireplace adjusts its appearance dynamically based on the current season of the year in your region.
+* **👣 Footsteps Heatmap:** The more books you read and update, the more footstep patterns begin to lightly burn into the wooden floorboards, indicating your path through the room.
+* **📚 Book Spine Physics:** Book spines on the shelf scale dynamically based on the page counts of the books. Heavier volumes look thicker and taller!
+* **🕸️ Forgotten Cobwebs:** If you go a long time without reading or cataloging books, spiderwebs will slowly begin to spin in the upper corners of your bookshelves.
+* **🏆 Book Tournament:** Pit your favorite books against one another in a head-to-head bracket tournament to crown your ultimate read of the year.
+* **🪦 The Book Graveyard:** Deleted books are sent to the "Graveyard of the Unfinished" with custom epitaphs.
+* **🌌 Constellation Map:** Maps your favorite genres to stars and constellations in the night sky.
+* **🧬 Reading DNA Helix:** Visualizes your reading logs as a custom double-helix gene map.
+* **🌕 Haunted Moon Mode:** During a real-world full moon, the window turns spooky and the cat's eyes glow crimson.
+* **⌨️ Keyboard Mode:** Support for keyboard shortcuts (including Vim bindings) for mouse-free navigation.
 
 ---
 
 ## 🛠️ Architecture & Tech Stack
 
-* **Frontend Layout:** Responsive Semantic HTML5, CSS Grid, and custom CSS Flexbox layouts.
-* **Visual Styling:** 
-  * Custom CSS variables for quick styling and full support for `prefers-color-scheme`.
-  * Tactile SVG noise-filter paper overlay to simulate authentic paper grains.
-  * Custom bezier transitions for drawers, modals, and panel slides.
-* **State & Storage:** Vanilla ES6+ JavaScript. State management is bound directly to `localStorage`.
-* **Libraries & APIs:**
-  * **[PDF.js](https://mozilla.github.io/pdf.js/)** (Mozilla) for client-side PDF document parsing and text extracting.
-  * **[Open Library API](https://openlibrary.org/developers/api)** for live metadata searches.
-  * **LLM API Integrations** for local AI-based annotations (Gemini, OpenRouter, OpenAI).
-* **Testing Suite:** Playwright E2E testing framework for multi-browser validation.
+* **Structure:** Semantic HTML5 layout.
+* **Design & Styling:** Custom CSS3 with custom variables, smooth transitions, custom scrollbars, and a warm, bookish design system. An SVG noise-filter paper overlay is applied across the room to give the graphics a rich, tactile texture.
+* **Logic & State:** Pure ES6+ JavaScript. The entire application runs client-side with states stored in browser `localStorage`.
+* **APIs & Libraries:**
+  * **[Open Library API](https://openlibrary.org/developers/api)** for rich book searches and cover metadata.
+  * **[Open-Meteo API](https://open-meteo.com/)** for live weather conditions.
+* **E2E Testing:** Playwright test suite for multi-browser and UI automation tests.
 
 ---
 
-## 🚀 Run Locally
+## 🚀 Quick Start
 
-Since this is a client-side application, you can run it directly:
+Since Inglenook has no backend server dependencies, you can open and run it directly in your browser:
 
-### 1. Direct Browser Open
-Just open any of the HTML pages in your browser:
-* `inglenook.html` (Reading Room & Tracker)
-* `reading-vault.html` (Vault & Stats)
-* `index.html` (Marginalia Reader)
-
-### 2. Local HTTP Server (Recommended)
-Starting a local server prevents CORS/security blocks when handling uploaded PDFs.
-```bash
-# Clone the repository
-git clone https://github.com/Vaishnavi-Dubey/inglenook.git
-cd inglenook
-
-# Install dev dependencies
-npm install
-
-# Start a simple HTTP server
-npx serve .
-```
+1. Double-click `inglenook.html` in your file explorer.
+2. (Optional but recommended) Run a local server to avoid CORS limitations with external cover assets:
+   ```bash
+   npm install
+   npx serve .
+   ```
 
 ---
 
-## 🧪 Running E2E & Visual Tests
+## 🧪 Tests
 
-We maintain a rigorous suite of **60 E2E and visual validation tests** using Playwright.
+To run the automated E2E test suite (which includes tests for the room rendering, panel animations, navigation views, and stats):
 
 ```bash
 # Install browsers
 npx playwright install
 
-# Run the test suite
-npx playwright test
-
-# View test report
-npx playwright show-report
+# Run all tests
+npx playwright test tests/full_test.spec.js --reporter=list
 ```
