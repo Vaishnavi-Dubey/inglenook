@@ -1,102 +1,117 @@
-# Inglenook & Marginalia: AI Reading Suite
+# 📚 Inglenook & Marginalia: The Cozy AI Reading Suite
 
-A beautiful, local-first personal reading companion and dashboard suite. It features a cozy illustrated reading room tracker, an AI-powered margins annotator, and an all-in-one Reading Vault dashboard.
+Welcome to **Inglenook**, a beautiful, local-first reading suite for book lovers. It combines a cozy, interactive illustrated reading room with **Marginalia**—an AI-powered margin notes annotator—and a unified **Reading Vault** dashboard to capture, catalog, and enrich your reading life.
 
-The entire suite runs fully in the browser with **local-first storage (LocalStorage)**, meaning your data, library, quotes, and API keys never leave your machine.
+Everything runs entirely in your browser. With **local-first privacy**, your books, favorite quotes, reading statistics, and API keys are stored securely in your browser's local storage—no tracking, no cloud databases, no logins required.
 
 ---
 
-## 🌟 Key Components
+## 🎨 Inside the Suite
 
-### 1. Inglenook (`inglenook.html`)
-*Your cozy personal reading room.*
-* **Cozy Interactive Library:** A visually rich, illustrated reading room showing your bookshelves, progress, and TBR (To Be Read) list.
-* **Open Library Integration:** Search millions of books by title, author, or ISBN and instantly add them to your shelves.
-* **Auto-Discovery / Explore:** Explore curated bookshelves and search recommendations.
-* **Advanced Statistics:** Visual charts and metrics analyzing your reading habits, genre breakdown, page count, and goals.
-* **Fully Responsive & Dark Mode:** Auto-adjusts or toggles between parchment-light and rich espresso-dark mode.
+### 1. Inglenook — Your Cozy Illustrated Reading Room (`inglenook.html`)
+*Escape into a quiet library. Catalog your books and watch your library grow.*
+* **Cozy Interactive Library UI:** Displays an illustrated reading room with bookshelf styling, a book detail drawer, and animated transitions.
+* **Pull-String Lamp Theme Toggle:** Click the hanging lamp pull-string to dim the lights and transition between a warm parchment-light mode and a rich espresso-dark mode.
+* **Open Library Lookup:** Search millions of books by title, author, or ISBN to instantly fetch covers, pages, and metadata.
+* **Smart Recommendations:** Explore curated bookshelves and dynamic search categories.
+* **Reading Stats & Charts:** Beautifully rendered local charts tracking your finished books, total pages read, genre breakdown, and daily progress.
 
-#### Screenshots
-| Reading Room (Light Mode) | Reading Room (Dark Mode) |
+#### 📸 Room Visuals
+| 🌅 The Reading Room (Light Mode) | 🌌 The Reading Room (Dark Mode) |
 | :---: | :---: |
 | ![Inglenook Room](assets/inglenook_room.png) | ![Inglenook Room Dark](assets/inglenook_dark.png) |
 
+| 📊 Library Analytics & Charts |
+| :---: |
+| ![Inglenook Stats](assets/inglenook_stats.png) |
+
 ---
 
-### 2. Marginalia (`index.html`)
-*Your AI-powered reading companion.*
-* **PDF & Text Annotation:** Upload PDF books or paste plaintext chapters.
-* **AI Marginal Notes:** Integrates with Gemini, OpenAI, or OpenRouter to automatically add contextual annotations, definitions, historical references, and literary critique in the page margins as you read.
-* **Interactive Highlights:** Highlight sentences, add manual notes, and choose color highlights (ink, gold, green, burgundy).
-* **Export and Share:** Copy your annotated text, export to Markdown, or save notes locally.
+### 2. Marginalia — AI Book Annotator (`index.html`)
+*Annotate your books with a personal AI scholar that writes directly in the margins.*
+* **PDF & Text Uploads:** Drag-and-drop PDF books or paste chapters directly into the reader.
+* **AI Margin Scribbles:** Send text sections to Gemini, OpenRouter, or OpenAI to generate contextual annotations, character analysis, historical context, or vocabulary definitions directly in the margins.
+* **Tactile Highlight Tools:** Highlight text passages with multiple ink-like highlighter colors (burgundy, gold, sage, blue).
+* **Export Options:** Instantly export your annotated text and margin notes as standard Markdown (`.md`) files.
 
-#### Screenshots
-| Marginalia AI Annotator |
+#### 📸 Marginalia Workspace
+| ✍️ AI Annotation Layout |
 | :---: |
 | ![Marginalia Results](assets/marginalia_results.png) |
 
 ---
 
-### 3. The Reading Vault (`reading-vault.html`)
-*The ultimate unified reading dashboard.*
-* **Unified Workspace:** Combines the cataloging of **Inglenook** with the AI annotation powers of **Marginalia**.
-* **Quote Keeper:** Keep track of your favorite quotes with page numbers and authors.
-* **Reading Goals Tracker:** Visual goals showing your current progress against daily or yearly targets.
-* **Local Backups:** Export your entire vault data as a clean JSON file and import it anytime.
+### 3. The Reading Vault — Unified Dashboard (`reading-vault.html`)
+*The central dashboard combining tracking, quotes, goals, and annotations.*
+* **Comprehensive Bookshelf:** Track books across "Currently Reading", "TBR" (To Be Read), and "Finished" categories.
+* **Interactive Quotes Wall:** Pin your favorite quotes from books with page numbers, tags, and authors.
+* **Daily & Yearly Reading Goals:** Dynamic progress meters tracking your reading habits against customizable goals.
+* **Backup & Portability:** Import and export your entire vault as a single `.json` file to migrate between devices.
 
-#### Screenshots
-| Reading Vault Dashboard | AI Annotation Workspace |
+#### 📸 Vault Visuals
+| 🏠 Home Dashboard | 💬 Interactive Quotes Wall |
 | :---: | :---: |
-| ![Reading Vault Home](assets/reading_vault_home.png) | ![Reading Vault Annotator](assets/reading_vault_annotator.png) |
+| ![Reading Vault Home](assets/reading_vault_home.png) | ![Reading Vault Quotes](assets/reading_vault_quotes.png) |
+
+| 🧠 AI Annotation Center | 📊 Vault Stats Dashboard |
+| :---: | :---: |
+| ![Reading Vault Annotator](assets/reading_vault_annotator.png) | ![Reading Vault Stats](assets/reading_vault_stats.png) |
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Architecture & Tech Stack
 
-* **Core Structure & Layout:** Semantic HTML5, CSS Grid & Flexbox.
-* **Design & Styling:** Vanilla CSS3 with custom variables, smooth transitions, custom scrollbars, and an SVG noise-filter paper texture overlay for a tactile, book-like feel.
-* **Logic & State:** Vanilla ES6+ JavaScript, local-first client-side state machine using HTML5 `localStorage`.
-* **Integrations:**
-  * [PDF.js](https://mozilla.github.io/pdf.js/) for client-side PDF rendering and text parsing.
-  * [Open Library API](https://openlibrary.org/developers/api) for rich book metadata lookup.
-  * LLM API integrations (Gemini, OpenRouter, OpenAI) for real-time contextual annotations.
-* **E2E Testing:** [Playwright](https://playwright.dev/) for robust, multi-browser integration and visual regression tests.
+* **Frontend Layout:** Responsive Semantic HTML5, CSS Grid, and custom CSS Flexbox layouts.
+* **Visual Styling:** 
+  * Custom CSS variables for quick styling and full support for `prefers-color-scheme`.
+  * Tactile SVG noise-filter paper overlay to simulate authentic paper grains.
+  * Custom bezier transitions for drawers, modals, and panel slides.
+* **State & Storage:** Vanilla ES6+ JavaScript. State management is bound directly to `localStorage`.
+* **Libraries & APIs:**
+  * **[PDF.js](https://mozilla.github.io/pdf.js/)** (Mozilla) for client-side PDF document parsing and text extracting.
+  * **[Open Library API](https://openlibrary.org/developers/api)** for live metadata searches.
+  * **LLM API Integrations** for local AI-based annotations (Gemini, OpenRouter, OpenAI).
+* **Testing Suite:** Playwright E2E testing framework for multi-browser validation.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Run Locally
 
-No installation or backend server is required! You can open any page directly in your browser.
+Since this is a client-side application, you can run it directly:
 
-### Option A: Open directly
-Simply double-click or open any of the following files in your favorite browser:
-* `inglenook.html`
-* `reading-vault.html`
-* `index.html`
+### 1. Direct Browser Open
+Just open any of the HTML pages in your browser:
+* `inglenook.html` (Reading Room & Tracker)
+* `reading-vault.html` (Vault & Stats)
+* `index.html` (Marginalia Reader)
 
-### Option B: Local Dev Server
-If you prefer running a local server (recommended for PDF.js modules and local development):
+### 2. Local HTTP Server (Recommended)
+Starting a local server prevents CORS/security blocks when handling uploaded PDFs.
 ```bash
-# Install development dependencies (Playwright)
+# Clone the repository
+git clone https://github.com/Vaishnavi-Dubey/inglenook.git
+cd inglenook
+
+# Install dev dependencies
 npm install
 
-# Start a local web server (e.g. using python or npx serve)
+# Start a simple HTTP server
 npx serve .
 ```
 
 ---
 
-## 🧪 Testing
+## 🧪 Running E2E & Visual Tests
 
-The project is fully tested with Playwright. To run the automated end-to-end integration and visual tests:
+We maintain a rigorous suite of **60 E2E and visual validation tests** using Playwright.
 
 ```bash
-# Install Playwright browsers (first-time setup)
+# Install browsers
 npx playwright install
 
-# Run all test suites
+# Run the test suite
 npx playwright test
 
-# Open test reports
+# View test report
 npx playwright show-report
 ```
