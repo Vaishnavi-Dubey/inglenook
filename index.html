@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marginalia — AI Reading Companion</title>
+<meta name="description" content="Marginalia: An AI-powered reading companion that annotates your books with thoughtful margin notes and highlights." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════
+   MARGINALIA — Candlelit Library Design System
+   ═══════════════════════════════════════════════════════ */
+
+/* ── CSS CUSTOM PROPERTIES ─────────────────────────────── */
+:root {
+  /* Parchment Light Mode */
+  --bg:           #F7F2E8;
+  --bg-card:      #FDFAF4;
+  --bg-panel:     #F0EAD9;
+  --ink:          #1E1610;
+  --ink-2:        #3D2F20;
+  --ink-3:        #6B5540;
+  --ink-muted:    #9A8070;
+  --gold:         #B8860B;
+  --gold-light:   #D4A017;
+  --gold-glow:    rgba(184,134,11,0.25);
+  --burgundy:     #722F37;
+  --burgundy-lt:  #9B3945;
+  --cream-border: #DDD5C0;
+  --shadow:       rgba(30,22,16,0.12);
+  --shadow-deep:  rgba(30,22,16,0.22);
+
+  /* Highlight colors — muted, ink-like */
+  --hl-yellow:    rgba(212,160,23,0.28);
+  --hl-green:     rgba(74,116,66,0.22);
+  --hl-blue:      rgba(59,90,143,0.22);
+  --hl-pink:      rgba(150,60,80,0.20);
+
+  /* Typography */
+  --font-serif:   'Cormorant Garamond', 'EB Garamond', Georgia, serif;
+  --font-ui:      'Inter', system-ui, sans-serif;
+
+  /* Spacing */
+  --radius:       8px;
+  --radius-lg:    16px;
+
+  /* Transitions */
+  --ease-out:     cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:           #1A1410;
+    --bg-card:      #211C16;
+    --bg-panel:     #251F18;
+    --ink:          #F0E8D8;
+    --ink-2:        #D8CCBA;
+    --ink-3:        #B8A890;
+    --ink-muted:    #7A6E60;
+    --gold:         #D4A017;
+    --gold-light:   #E8B830;
+    --gold-glow:    rgba(212,160,23,0.30);
+    --burgundy:     #C0505A;
+    --burgundy-lt:  #D4727A;
+    --cream-border: #3A3228;
+    --shadow:       rgba(0,0,0,0.40);
+    --shadow-deep:  rgba(0,0,0,0.60);
+    --hl-yellow:    rgba(212,160,23,0.30);
+    --hl-green:     rgba(100,160,90,0.25);
+    --hl-blue:      rgba(100,140,210,0.25);
+    --hl-pink:      rgba(200,100,110,0.25);
+  }
+}
+
+/* ── RESET & BASE ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Paper grain texture via SVG filter */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ── TYPOGRAPHY ────────────────────────────────────────── */
+h1, h2, h3, .serif { font-family: var(--font-serif); }
+h1 { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 600; line-height: 1.1; letter-spacing: -0.01em; }
+h2 { font-size: 1.5rem; font-weight: 500; }
+h3 { font-size: 1.15rem; font-weight: 500; }
+p { line-height: 1.75; }
+
+/* ── DUST MOTES ────────────────────────────────────────── */
+#dustLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.mote {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--gold-light);
+  filter: blur(2px);
+  animation: floatMote var(--dur, 18s) var(--delay, 0s) infinite ease-in-out;
+  will-change: transform, opacity;
+}
+@keyframes floatMote {
+  0%   { transform: translateY(0) translateX(0); opacity: var(--mo,0.08); }
+  33%  { transform: translateY(-40px) translateX(8px); opacity: var(--mo,0.08); }
+  66%  { transform: translateY(-80px) translateX(-6px); opacity: calc(var(--mo,0.08) * 0.5); }
+  100% { transform: translateY(-140px) translateX(4px); opacity: 0; }
+}
+
+/* ── LAYOUT ────────────────────────────────────────────── */
+.page-wrap {
+  position: relative;
+  z-index: 2;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── HERO HEADER ───────────────────────────────────────── */
+.hero {
+  text-align: center;
+  padding: 60px 0 40px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: clamp(2.8rem, 7vw, 4.8rem);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  font-variant: small-caps;
+  text-shadow: 0 2px 20px var(--gold-glow);
+  animation: heroFadeIn 1s var(--ease-out) both;
+}
+.hero-tagline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  color: var(--ink-3);
+  margin-top: 8px;
+  letter-spacing: 0.02em;
+  animation: heroFadeIn 1s 0.2s var(--ease-out) both;
+}
+.hero-rule {
+  width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 20px auto;
+  animation: heroFadeIn 1s 0.4s var(--ease-out) both;
+}
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── BOOKPLATE TOGGLES ─────────────────────────────────── */
+.toggle-row {
+  display: flex;
+  gap: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  padding: 4px;
+  width: fit-content;
+  margin: 0 auto;
+}
+.toggle-btn {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 22px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  border-radius: calc(var(--radius) - 2px);
+  transition: all 0.2s ease;
+  position: relative;
+}
+.toggle-btn.active {
+  background: var(--bg-card);
+  color: var(--gold);
+  box-shadow: inset 0 1px 3px var(--shadow), 0 1px 4px var(--shadow);
+  border: 1px solid var(--cream-border);
+}
+.toggle-btn:hover:not(.active) { color: var(--ink-2); }
+
+/* ── CONTROL ROW ───────────────────────────────────────── */
+.controls-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 36px;
+  animation: heroFadeIn 0.7s 0.5s var(--ease-out) both;
+}
+@media (max-width: 640px) {
+  .controls-section { grid-template-columns: 1fr; }
+}
+
+.panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: 0 2px 16px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.6);
+  position: relative;
+  overflow: hidden;
+}
+.panel-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+.panel-title {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+/* Reading mode info */
+.mode-desc {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--ink-3);
+  line-height: 1.65;
+  margin-top: 12px;
+}
+
+/* ── BOOK-OPENING UPLOAD ZONE ──────────────────────────── */
+.book-stage {
+  perspective: 1000px;
+  position: relative;
+  min-height: 180px;
+  margin-top: 8px;
+}
+.book-cover-left,
+.book-cover-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--cream-border) 100%);
+  border: 1px solid var(--cream-border);
+  transform-origin: 100% 50%;
+  transition: transform 0.7s var(--ease-out);
+  z-index: 10;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.book-cover-left  { transform-origin: left center; border-radius: var(--radius) 0 0 var(--radius); }
+.book-cover-right { left: 50%; transform-origin: right center; border-radius: 0 var(--radius) var(--radius) 0; }
+.book-spine-icon {
+  font-size: 2rem;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+}
+.book-opened .book-cover-left  { transform: perspective(600px) rotateY(-140deg); }
+.book-opened .book-cover-right { transform: perspective(600px) rotateY(140deg); }
+
+.drop-zone {
+  background: var(--bg-panel);
+  border: 2px dashed var(--cream-border);
+  border-radius: var(--radius);
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  z-index: 5;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--bg-panel) 90%, var(--gold) 10%);
+}
+.drop-icon { font-size: 2.2rem; }
+.drop-zone h3 {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.drop-zone p { font-size: 0.82rem; color: var(--ink-muted); }
+.browse-link { color: var(--gold); text-decoration: underline; cursor: pointer; }
+
+/* File chip */
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--cream-border);
+  border-radius: 40px;
+  padding: 8px 16px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  animation: chipIn 0.3s var(--ease-spring) both;
+}
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.85) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.chip-name { font-weight: 500; color: var(--ink-2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.chip-size { color: var(--ink-muted); font-size: 0.75rem; }
+.chip-remove {
+  background: none; border: none; cursor: pointer; color: var(--ink-muted);
+  font-size: 1rem; padding: 2px; border-radius: 50%; transition: color 0.2s;
+}
+.chip-remove:hover { color: var(--burgundy); }
+
+/* ── PASTE MODE ────────────────────────────────────────── */
+/* Paste mode panel — shown/hidden via JS */#pasteModePanel { /* initially hidden by JS */ }
+.form-group { margin-bottom: 14px; }
+.form-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+.form-input, .form-textarea {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: vertical;
+}
+.form-input:focus, .form-textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+.form-textarea { min-height: 120px; line-height: 1.7; }
+
+/* Queue list */
+.queue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-top: 8px;
+  animation: chipIn 0.3s var(--ease-spring) both;
+}
+.queue-item-info { flex: 1; }
+.queue-item-title { font-weight: 600; font-size: 0.85rem; color: var(--ink-2); }
+.queue-item-preview { font-size: 0.78rem; color: var(--ink-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.queue-item-words { font-size: 0.7rem; color: var(--ink-muted); margin-top: 2px; }
+
+/* ── BUTTONS ───────────────────────────────────────────── */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.btn {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  position: relative;
+  overflow: hidden;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0);
+  transition: background 0.15s;
+}
+.btn:active { transform: scale(0.97); box-shadow: inset 0 2px 4px var(--shadow-deep) !important; }
+.btn:active::after { background: rgba(255,255,255,0.06); }
+
+.btn-primary {
+  background: var(--gold);
+  color: #fff;
+  border-color: var(--gold);
+  box-shadow: 0 2px 8px rgba(184,134,11,0.35), 0 1px 0 rgba(255,255,255,0.1) inset;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--gold-light);
+  box-shadow: 0 4px 16px rgba(184,134,11,0.45), 0 1px 0 rgba(255,255,255,0.1) inset;
+  transform: translateY(-1px);
+}
+.btn-primary:disabled {
+  background: var(--cream-border);
+  color: var(--ink-muted);
+  border-color: var(--cream-border);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-3);
+  border-color: var(--cream-border);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-3);
+  background: var(--bg-panel);
+}
+
+/* ── API KEY INPUT ─────────────────────────────────────── */
+.api-key-section {
+  background: var(--bg-card);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 28px;
+  margin-top: 24px;
+  animation: heroFadeIn 0.7s 0.6s var(--ease-out) both;
+}
+.api-key-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.api-key-input {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: monospace;
+}
+.api-key-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+.api-key-note { font-size: 0.75rem; color: var(--ink-muted); margin-top: 6px; }
+.api-key-note a { color: var(--gold); }
+
+/* ── PROGRESS — CANDLELIT ──────────────────────────────── */
+#progressSection {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  margin-top: 32px;
+  box-shadow: 0 2px 16px var(--shadow);
+  animation: heroFadeIn 0.5s var(--ease-out) both;
+}
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.progress-title {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.progress-count {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.progress-label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+}
+
+/* Candle-flicker bar */
+.candle-bar-track {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  border: 1px solid var(--cream-border);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.candle-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 60%, #F0C040 100%);
+  border-radius: 4px;
+  transition: width 0.5s var(--ease-out);
+  position: relative;
+  animation: candleFlicker 2.5s ease-in-out infinite;
+}
+@keyframes candleFlicker {
+  0%   { opacity: 1; }
+  20%  { opacity: 0.97; }
+  40%  { opacity: 1; }
+  55%  { opacity: 0.94; }
+  70%  { opacity: 1; }
+  85%  { opacity: 0.96; }
+  100% { opacity: 1; }
+}
+
+/* Chapter list — vertical ribbon */
+.chapter-list-wrap { display: flex; gap: 16px; }
+.ribbon-track {
+  width: 4px;
+  background: var(--bg-panel);
+  border-radius: 2px;
+  border: 1px solid var(--cream-border);
+  position: relative;
+  flex-shrink: 0;
+  min-height: 40px;
+}
+.ribbon-fill {
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 6px;
+  background: linear-gradient(to bottom, var(--burgundy), var(--gold));
+  border-radius: 3px;
+  height: 0%;
+  transition: height 0.5s var(--ease-out);
+}
+.chapter-list { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.chapter-item.annotating { border-color: var(--gold); background: color-mix(in srgb, var(--bg-panel) 90%, var(--gold) 10%); }
+.chapter-item.done { border-color: var(--cream-border); }
+
+.ch-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cream-border);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+.ch-dot.pending { background: var(--cream-border); }
+.ch-dot.annotating {
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold-glow), 0 0 16px var(--gold-glow);
+  animation: dotGlow 1.5s ease-in-out infinite;
+}
+.ch-dot.done { background: var(--gold); }
+
+@keyframes dotGlow {
+  0%, 100% { box-shadow: 0 0 6px var(--gold-glow), 0 0 12px var(--gold-glow); }
+  50%       { box-shadow: 0 0 12px var(--gold-glow), 0 0 24px var(--gold-glow); }
+}
+
+/* Bookmark ribbon slide-in on done */
+.bookmark-ribbon {
+  position: absolute;
+  top: 0; right: 16px;
+  width: 14px; height: 0;
+  background: linear-gradient(to bottom, var(--burgundy), var(--burgundy-lt));
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%);
+  transition: height 0.4s var(--ease-spring);
+}
+.chapter-item.done .bookmark-ribbon { height: 28px; }
+
+.ch-name { font-size: 0.85rem; color: var(--ink-2); flex: 1; font-weight: 500; }
+.ch-words { font-size: 0.72rem; color: var(--ink-muted); }
+.ch-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--cream-border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESULTS ───────────────────────────────────────────── */
+#resultsSection { display: none; }
+.results-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+.results-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.results-subtitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.results-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Legend */
+.legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 14px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+}
+.legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: var(--ink-3); }
+.legend-swatch {
+  width: 28px; height: 5px;
+  border-radius: 3px;
+}
+.sw-yellow { background: var(--gold); }
+.sw-green  { background: #4A7442; }
+.sw-blue   { background: #3B5A8F; }
+.sw-pink   { background: #963C50; }
+
+/* ── CHAPTER RESULT CARD (as a "page") ─────────────────── */
+.chapter-result {
+  background: var(--bg-card);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius-lg);
+  padding: 40px 40px 32px;
+  margin-bottom: 36px;
+  position: relative;
+  overflow: hidden;
+  /* Page thickness shadow */
+  box-shadow:
+    -6px 0 18px -4px rgba(30,22,16,0.10),
+    0 4px 24px var(--shadow);
+  /* Page-turn animation on entry */
+  animation: pageReveal 0.6s var(--ease-out) both;
+  transform-origin: left center;
+}
+@keyframes pageReveal {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) rotateY(-15deg) translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(0deg) translateX(0);
+  }
+}
+/* Left-edge "page thickness" gradient */
+.chapter-result::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  background: linear-gradient(to right, rgba(30,22,16,0.08), transparent);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+.chapter-result:nth-child(2) { animation-delay: 0.1s; }
+.chapter-result:nth-child(3) { animation-delay: 0.2s; }
+.chapter-result:nth-child(4) { animation-delay: 0.3s; }
+.chapter-result:nth-child(5) { animation-delay: 0.4s; }
+
+.chapter-result-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--cream-border);
+}
+.ch-num-badge {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(184,134,11,0.4);
+}
+.ch-result-title {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── ANNOTATED TEXT ────────────────────────────────────── */
+.annotated-text {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--bg);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  margin-bottom: 28px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cream-border) transparent;
+}
+.annotated-text::-webkit-scrollbar { width: 6px; }
+.annotated-text::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 3px; }
+
+/* Ink-bleed highlights */
+mark {
+  border-radius: 3px;
+  padding: 1px 2px;
+  position: relative;
+  display: inline;
+  background-size: 200% 100%;
+  background-position: right center;
+  transition: none;
+}
+mark.hl-reveal {
+  animation: inkBleed 0.6s var(--ease-out) forwards;
+  background-position: right center;
+}
+@keyframes inkBleed {
+  from {
+    background-size: 0% 100%;
+    background-position: left center;
+    opacity: 0.3;
+  }
+  to {
+    background-size: 100% 100%;
+    background-position: left center;
+    opacity: 1;
+  }
+}
+
+.hl-yellow {
+  background: linear-gradient(to right, var(--hl-yellow) 0%, var(--hl-yellow) 100%);
+  background-repeat: no-repeat;
+  color: inherit;
+}
+.hl-green {
+  background: linear-gradient(to right, var(--hl-green) 0%, var(--hl-green) 100%);
+  background-repeat: no-repeat;
+  color: inherit;
+}
+.hl-blue {
+  background: linear-gradient(to right, var(--hl-blue) 0%, var(--hl-blue) 100%);
+  background-repeat: no-repeat;
+  color: inherit;
+}
+.hl-pink {
+  background: linear-gradient(to right, var(--hl-pink) 0%, var(--hl-pink) 100%);
+  background-repeat: no-repeat;
+  color: inherit;
+}
+
+/* ── MARGIN NOTES ──────────────────────────────────────── */
+.notes-section-title {
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notes-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--cream-border);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.note-card {
+  background: var(--bg);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  cursor: default;
+  /* Quill-write animation */
+  clip-path: inset(0 100% 0 0);
+  transform: rotate(1.5deg);
+  opacity: 0;
+  transition: transform 0.3s ease, box-shadow 0.2s ease;
+  will-change: clip-path, transform, opacity;
+}
+.note-card.note-revealed {
+  animation: quillWrite 0.5s var(--ease-out) forwards;
+}
+@keyframes quillWrite {
+  from {
+    clip-path: inset(0 100% 0 0);
+    transform: rotate(1.5deg);
+    opacity: 0.6;
+  }
+  to {
+    clip-path: inset(0 0% 0 0);
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+}
+.note-card:hover {
+  transform: rotate(0.8deg) translateY(-2px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+/* Top-left ink dot */
+.note-card::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px;
+  width: 8px; height: 8px;
+  border-radius: 0 0 var(--radius) 0;
+  background: var(--type-color, var(--gold));
+  opacity: 0.7;
+}
+
+.note-type-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+.tag-yellow { background: var(--hl-yellow); color: #7A5800; }
+.tag-green  { background: var(--hl-green);  color: #2A5020; }
+.tag-blue   { background: var(--hl-blue);   color: #1E3A6A; }
+.tag-pink   { background: var(--hl-pink);   color: #5A1C28; }
+
+.note-quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+  line-height: 1.6;
+  margin-bottom: 10px;
+  border-left: 2px solid var(--cream-border);
+  padding-left: 10px;
+}
+.note-why {
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+.note-write-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.note-write {
+  font-family: var(--font-serif);
+  font-size: 0.88rem;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+/* ── SUMMARY BOX ───────────────────────────────────────── */
+.summary-box {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 80%, var(--gold) 8%) 0%, var(--bg-panel) 100%);
+  border: 1px solid var(--cream-border);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-top: 8px;
+}
+.summary-box h4 {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: 10px;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+.summary-box p {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  color: var(--ink-2);
+  line-height: 1.75;
+}
+.tip-box {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--bg-card) 70%, var(--burgundy) 8%);
+  border-left: 3px solid var(--burgundy);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.88rem;
+  color: var(--ink-3);
+  line-height: 1.65;
+}
+
+/* ── TOAST NOTIFICATIONS ───────────────────────────────── */
+#toastContainer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 1px solid var(--cream-border);
+  color: var(--ink-2);
+  box-shadow: 0 4px 20px var(--shadow-deep);
+  pointer-events: auto;
+  animation: toastIn 0.35s var(--ease-spring) both;
+  max-width: 280px;
+}
+.toast.success { border-color: var(--gold); color: var(--gold); }
+.toast.error   { border-color: var(--burgundy); color: var(--burgundy); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── REDUCED MOTION ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.1ms !important;
+  }
+  .mote { display: none; }
+}
+
+/* ── MOBILE ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .chapter-result { padding: 24px 20px; animation: heroFadeIn 0.4s both; }
+  .notes-grid { grid-template-columns: 1fr; }
+  .toggle-btn { padding: 8px 14px; font-size: 0.72rem; }
+  #toastContainer { right: 12px; bottom: 12px; }
+  .results-header { flex-direction: column; }
+  .chapter-result::before { display: none; }
+}
+
+/* ── SCROLLBAR ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+
+/* ── UTILITY ───────────────────────────────────────────── */
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+</style>
+</head>
+<body>
+
+<!-- ── BACKGROUND TEXTURE ────────────────────────── -->
+<div id="dustLayer" aria-hidden="true"></div>
+
+<!-- ── TOAST ─────────────────────────────────────── -->
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+<div class="page-wrap">
+
+  <!-- ── HERO ─────────────────────────────────── -->
+  <header class="hero" role="banner">
+    <h1 class="hero-title">Marginalia</h1>
+    <p class="hero-tagline">Every book deserves a thoughtful reader.</p>
+    <div class="hero-rule" aria-hidden="true"></div>
+  </header>
+
+  <!-- ── MODE TOGGLES ──────────────────────────── -->
+  <nav aria-label="Input mode" style="text-align:center;margin-bottom:28px;animation:heroFadeIn 0.7s 0.3s both">
+    <div class="toggle-row" role="tablist">
+      <button class="toggle-btn active" id="btnFileMode" role="tab" aria-selected="true" aria-controls="fileModePanel" onclick="setInputMode('file')">📖 Upload Book</button>
+      <button class="toggle-btn" id="btnPasteMode" role="tab" aria-selected="false" aria-controls="pasteModePanel" onclick="setInputMode('paste')">✏️ Paste Text</button>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTROLS ──────────────────────────── -->
+  <div class="controls-section">
+
+    <!-- ── LEFT: INPUT PANEL ──────────────────── -->
+    <div class="panel-card" style="grid-column:1">
+      <div class="panel-title">Your Book</div>
+
+      <!-- FILE MODE -->
+      <div id="fileModePanel">
+        <input type="file" id="fileInput" accept=".pdf,.epub,.txt,.text" style="display:none" aria-label="Upload book file" />
+        <div class="book-stage" id="bookStage" aria-label="Book upload area">
+          <div class="book-cover-left" aria-hidden="true"><span class="book-spine-icon">📚</span></div>
+          <div class="book-cover-right" aria-hidden="true"></div>
+          <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Upload PDF, EPUB, or TXT file — click or drag and drop">
+            <span class="drop-icon" aria-hidden="true">📖</span>
+            <h3>Open a Book</h3>
+            <p>Drag & drop a PDF, EPUB, or TXT<br>or <span class="browse-link" onclick="fileInput.click()">browse files</span></p>
+          </div>
+        </div>
+        <div id="fileChipContainer"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="annotateFileBtn" onclick="startFileAnnotation()" disabled aria-disabled="true">
+            <span id="annotateFileIcon">📕</span> Annotate Book
+          </button>
+        </div>
+      </div>
+
+      <!-- PASTE MODE -->
+      <div id="pasteModePanel" style="display:none">
+        <div class="form-group">
+          <label class="form-label" for="sectionName">Section / Chapter Name</label>
+          <input class="form-input" type="text" id="sectionName" placeholder="e.g. Chapter 1 — The Beginning" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sectionText">Paste your text here</label>
+          <textarea class="form-textarea" id="sectionText" placeholder="Paste the section content here…" rows="5"></textarea>
+        </div>
+        <div id="queueList"></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="addSectionToQueue()" id="addSectionBtn">+ Add to Queue</button>
+          <button class="btn btn-primary" id="annotatePasteBtn" onclick="startPasteAnnotation()">
+            <span>✨</span> Annotate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: READING MODE ──────────────────── -->
+    <div class="panel-card" style="grid-column:2">
+      <div class="panel-title">Reading Mode</div>
+      <div class="toggle-row" role="tablist" aria-label="Reading mode">
+        <button class="toggle-btn active" id="btnCourse" role="tab" aria-selected="true" onclick="setReadingMode('course')">🎓 Coursebook</button>
+        <button class="toggle-btn" id="btnNovel" role="tab" aria-selected="false" onclick="setReadingMode('novel')">📖 Novel</button>
+      </div>
+      <p class="mode-desc" id="modeDesc">Highlights key ideas, definitions, arguments &amp; examples. Generates exam tips and academic margin notes.</p>
+
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--cream-border)">
+        <div class="panel-title">Google Gemini API Key <span style="color:var(--gold);font-size:0.68rem;letter-spacing:0.04em">(FREE)</span></div>
+        <div class="api-key-row">
+          <input type="password" class="api-key-input" id="apiKeyInput" placeholder="AIza…" autocomplete="off" aria-label="Google Gemini API key" />
+          <button class="btn btn-ghost" onclick="saveApiKey()" style="white-space:nowrap;font-size:0.75rem">Save</button>
+        </div>
+        <p class="api-key-note">Free — no credit card. Get a key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROGRESS ──────────────────────────────── -->
+  <section id="progressSection" aria-label="Annotation progress" aria-live="polite">
+    <div class="progress-header">
+      <span class="progress-title serif">✦ Annotating…</span>
+      <span class="progress-count" id="progressCount">0 / 0</span>
+    </div>
+    <p class="progress-label" id="progressLabel">Preparing your manuscript…</p>
+    <div class="candle-bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Annotation progress">
+      <div class="candle-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="chapter-list-wrap">
+      <div class="ribbon-track" aria-hidden="true">
+        <div class="ribbon-fill" id="ribbonFill"></div>
+      </div>
+      <div class="chapter-list" id="chapterList"></div>
+    </div>
+  </section>
+
+  <!-- ── RESULTS ──────────────────────────────── -->
+  <section id="resultsSection" aria-label="Annotation results">
+    <div class="results-header">
+      <div>
+        <h2 class="results-title">Your Annotated Book</h2>
+        <p class="results-subtitle">Read. Reflect. Remember.</p>
+      </div>
+      <div class="results-actions">
+        <button class="btn btn-ghost" onclick="copyAllNotes()" aria-label="Copy all notes to clipboard">⎘ Copy Notes</button>
+        <button class="btn btn-ghost" onclick="downloadAnnotations()" aria-label="Export annotations as Markdown">↓ Export</button>
+        <button class="btn btn-ghost" onclick="startOver()" aria-label="Start over with a new book">↺ Start Over</button>
+      </div>
+    </div>
+
+    <div class="legend-bar" id="legendBox" aria-label="Highlight color legend"></div>
+    <div id="chaptersContainer"></div>
+  </section>
+
+</div><!-- /.page-wrap -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   MARGINALIA — AI Reading Companion
+   Gemini 2.0 Flash powered annotation engine
+   ═══════════════════════════════════════════════════════════ */
+
+// ── STATE ────────────────────────────────────────────────
+let inputMode    = 'file';
+let readingMode  = 'course';
+let uploadedFile = null;
+let sectionQueue = [];
+let annotationResults = [];
+let apiKey = localStorage.getItem('marginalia_gemini_key') || '';
+
+// PDF.js worker
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ── INIT ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  buildDustMotes();
+  openBookCover();
+  setInputMode('file');
+  setReadingMode('course');
+  if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
+});
+
+// ── API KEY ──────────────────────────────────────────────
+function saveApiKey() {
+  apiKey = document.getElementById('apiKeyInput').value.trim();
+  localStorage.setItem('marginalia_gemini_key', apiKey);
+  showToast('API key saved ✓', 'success');
+}
+
+// ── DUST MOTES ───────────────────────────────────────────
+function buildDustMotes() {
+  const layer = document.getElementById('dustLayer');
+  for (let i = 0; i < 10; i++) {
+    const m = document.createElement('div');
+    m.className = 'mote';
+    const size = 2 + Math.random() * 4;
+    m.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*95}%;
+      bottom:${Math.random()*40}%;
+      --dur:${15+Math.random()*15}s;
+      --delay:${-Math.random()*20}s;
+      --mo:${0.05+Math.random()*0.10};
+    `;
+    layer.appendChild(m);
+  }
+}
+
+// ── BOOK OPENING ANIMATION ───────────────────────────────
+function openBookCover() {
+  const stage = document.getElementById('bookStage');
+  if (!stage) return;
+  setTimeout(() => stage.classList.add('book-opened'), 300);
+}
+
+// ── MODE TOGGLES ─────────────────────────────────────────
+function setInputMode(mode) {
+  inputMode = mode;
+  document.getElementById('btnFileMode').classList.toggle('active', mode === 'file');
+  document.getElementById('btnFileMode').setAttribute('aria-selected', mode === 'file');
+  document.getElementById('btnPasteMode').classList.toggle('active', mode === 'paste');
+  document.getElementById('btnPasteMode').setAttribute('aria-selected', mode === 'paste');
+  document.getElementById('fileModePanel').style.display  = mode === 'file'  ? 'block' : 'none';
+  document.getElementById('pasteModePanel').style.display = mode === 'paste' ? 'block' : 'none';
+}
+
+function setReadingMode(mode) {
+  readingMode = mode;
+  document.getElementById('btnCourse').classList.toggle('active', mode === 'course');
+  document.getElementById('btnCourse').setAttribute('aria-selected', mode === 'course');
+  document.getElementById('btnNovel').classList.toggle('active', mode === 'novel');
+  document.getElementById('btnNovel').setAttribute('aria-selected', mode === 'novel');
+  document.getElementById('modeDesc').textContent = mode === 'course'
+    ? 'Highlights key ideas, definitions, arguments & examples. Generates exam tips and academic margin notes.'
+    : 'Highlights important moments, character emotion, beautiful writing, and themes. Generates personal reflection prompts.';
+}
+
+// ── DRAG & DROP ──────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', e => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]);
+});
+dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFileSelect(e.target.files[0]); });
+
+function handleFileSelect(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf','epub','txt','text'].includes(ext)) {
+    showToast('Please upload a PDF, EPUB, or TXT file.', 'error'); return;
+  }
+  uploadedFile = file;
+  renderFileChip(file);
+  const btn = document.getElementById('annotateFileBtn');
+  btn.disabled = false;
+  btn.setAttribute('aria-disabled', 'false');
+  document.getElementById('annotateFileIcon').textContent = '📖';
+}
+
+function renderFileChip(file) {
+  const icons = { pdf:'📄', epub:'📗', txt:'📝' };
+  const ext = file.name.split('.').pop().toLowerCase();
+  const sz = file.size > 1048576 ? (file.size/1048576).toFixed(1)+' MB' : (file.size/1024).toFixed(0)+' KB';
+  document.getElementById('fileChipContainer').innerHTML = `
+    <div class="file-chip">
+      <span>${icons[ext]||'📁'}</span>
+      <span class="chip-name" title="${escHtml(file.name)}">${escHtml(file.name)}</span>
+      <span class="chip-size">${sz}</span>
+      <button class="chip-remove" onclick="clearFile()" aria-label="Remove file">✕</button>
+    </div>`;
+}
+
+function clearFile() {
+  uploadedFile = null;
+  document.getElementById('fileChipContainer').innerHTML = '';
+  fileInput.value = '';
+  const btn = document.getElementById('annotateFileBtn');
+  btn.disabled = true;
+  btn.setAttribute('aria-disabled', 'true');
+  document.getElementById('annotateFileIcon').textContent = '📕';
+}
+
+// ── QUEUE (PASTE MODE) ───────────────────────────────────
+function addSectionToQueue() {
+  const name = document.getElementById('sectionName').value.trim();
+  const text = document.getElementById('sectionText').value.trim();
+  if (!name || !text) { showToast('Please fill in both fields.', 'error'); return; }
+  sectionQueue.push({ name, text });
+  document.getElementById('sectionName').value = '';
+  document.getElementById('sectionText').value = '';
+  renderQueueList();
+  showToast(`"${name}" added to queue ✓`, 'success');
+}
+
+function removeFromQueue(idx) {
+  sectionQueue.splice(idx, 1);
+  renderQueueList();
+}
+
+function renderQueueList() {
+  const el = document.getElementById('queueList');
+  el.innerHTML = sectionQueue.map((s, i) => `
+    <div class="queue-item">
+      <div class="queue-item-info">
+        <div class="queue-item-title">${escHtml(s.name)}</div>
+        <div class="queue-item-preview">${escHtml(s.text.substring(0,100))}…</div>
+        <div class="queue-item-words">${s.text.split(/\s+/).length} words</div>
+      </div>
+      <button class="chip-remove" onclick="removeFromQueue(${i})" aria-label="Remove section">&times;</button>
+    </div>`).join('');
+}
+
+// ── FILE ANNOTATION ENTRY ────────────────────────────────
+async function startFileAnnotation() {
+  if (!apiKey) { showToast('Please enter your free Gemini API key first.', 'error'); return; }
+  if (!uploadedFile) { showToast('Please upload a file first.', 'error'); return; }
+  setLoading(true);
+  try {
+    const ext = uploadedFile.name.split('.').pop().toLowerCase();
+    let chapters = [];
+    if (ext === 'pdf')       chapters = await extractPdf(uploadedFile);
+    else if (ext === 'epub') chapters = await extractEpub(uploadedFile);
+    else                     chapters = await extractTxt(uploadedFile);
+    if (!chapters.length) { showToast('Could not extract text from this file.', 'error'); return; }
+    await runAnnotationPipeline(chapters);
+  } catch(err) {
+    console.error(err);
+    showToast('Error reading file: ' + err.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function startPasteAnnotation() {
+  if (!apiKey) { showToast('Please enter your free Gemini API key first.', 'error'); return; }
+  const name = document.getElementById('sectionName').value.trim();
+  const text = document.getElementById('sectionText').value.trim();
+  const all  = [...sectionQueue];
+  if (name && text) all.push({ name, text });
+  if (!all.length) { showToast('Please add at least one section.', 'error'); return; }
+  setLoading(true);
+  try {
+    await runAnnotationPipeline(all);
+  } catch (err) {
+    console.error(err);
+    showToast('Error: ' + err.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── PDF EXTRACTION ───────────────────────────────────────
+async function extractPdf(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let full = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    full += content.items.map(it => it.str).join(' ') + '\n';
+  }
+  return detectChapters(full, file.name);
+}
+
+// ── EPUB EXTRACTION ──────────────────────────────────────
+async function extractEpub(file) {
+  const buf  = await file.arrayBuffer();
+  const zip  = await unzipBuffer(buf);
+  const htmlFiles = Object.keys(zip)
+    .filter(n => /\.(html|xhtml|htm)$/i.test(n) && !/(toc|nav|ncx)/i.test(n))
+    .sort();
+
+  if (!htmlFiles.length) {
+    const txtFiles = Object.keys(zip).filter(n => /\.txt$/i.test(n));
+    if (!txtFiles.length) throw new Error('No readable content in EPUB.');
+    return detectChapters(new TextDecoder().decode(zip[txtFiles[0]]), file.name);
+  }
+
+  const opfFile = Object.keys(zip).find(n => /\.opf$/i.test(n));
+  let ordered = htmlFiles;
+  if (opfFile) {
+    try {
+      const opfText = new TextDecoder().decode(zip[opfFile]);
+      const idrefs  = [...opfText.matchAll(/idref="([^"]+)"/g)].map(m => m[1]);
+      const id2href = {};
+      [...opfText.matchAll(/id="([^"]+)"[^>]*href="([^"]+)"/g)].forEach(m => { id2href[m[1]] = m[2]; });
+      if (idrefs.length) {
+        const base = opfFile.includes('/') ? opfFile.split('/').slice(0,-1).join('/')+'/' : '';
+        const res  = idrefs.map(id => id2href[id]).filter(Boolean)
+          .map(h => { const full = base + h.replace(/^\.\//, ''); return Object.keys(zip).find(k => k === full || k.endsWith(h.replace(/^\.\//, ''))); })
+          .filter(Boolean).filter(n => /\.(html|xhtml|htm)$/i.test(n));
+        if (res.length) ordered = res;
+      }
+    } catch(e) {}
+  }
+
+  const chapters = [];
+  for (const fname of ordered) {
+    const raw  = new TextDecoder().decode(zip[fname]);
+    const text = stripHtml(raw).replace(/\s+/g,' ').trim();
+    if (text.length < 80) continue;
+    const titleMatch = raw.match(/<title[^>]*>([^<]+)<\/title>/i) || raw.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
+    const chTitle = titleMatch ? stripHtml(titleMatch[1]).trim() : fname.split('/').pop().replace(/\.(html|xhtml)$/i,'');
+    chapters.push({ name: chTitle, text });
+  }
+  if (chapters.length === 1) return detectChapters(chapters[0].text, file.name);
+  return chapters.slice(0, 30);
+}
+
+async function extractTxt(file) {
+  return detectChapters(await file.text(), file.name);
+}
+
+function detectChapters(text, filename) {
+  const re = /^(?:chapter|part|section|prologue|epilogue|introduction|preface|appendix|unit|lesson|module)\s+(?:\d+|[ivxlcdm]+|[A-Z])\b.*$/gim;
+  const matches = [...text.matchAll(re)];
+  if (matches.length >= 2) {
+    const chs = [];
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].index;
+      const end   = i+1 < matches.length ? matches[i+1].index : text.length;
+      const cnt   = text.slice(start + matches[i][0].length, end).trim();
+      if (cnt.length > 50) chs.push({ name: matches[i][0].trim().substring(0,80), text: cnt });
+    }
+    if (chs.length) return chs.slice(0,30);
+  }
+  const words = text.split(/\s+/);
+  const chunks = [];
+  for (let i = 0; i < words.length; i += 600) {
+    const chunkText = words.slice(i, i + 600).join(' ');
+    if (!chunkText.trim()) continue;
+    chunks.push({ name: `Section ${Math.floor(i/600)+1}`, text: chunkText });
+  }
+  return chunks.slice(0, 30);
+}
+
+// ── EPUB UNZIP ───────────────────────────────────────────
+async function unzipBuffer(buffer) {
+  const view = new Uint8Array(buffer);
+  const files = {};
+  let offset = 0;
+  while (offset < view.length - 4) {
+    const sig = view[offset]|(view[offset+1]<<8)|(view[offset+2]<<16)|(view[offset+3]<<24);
+    if (sig !== 0x04034b50) break;
+    const compression    = view[offset+8]|(view[offset+9]<<8);
+    const compressedSize = view[offset+18]|(view[offset+19]<<8)|(view[offset+20]<<16)|(view[offset+21]<<24);
+    const nameLen        = view[offset+26]|(view[offset+27]<<8);
+    const extraLen       = view[offset+28]|(view[offset+29]<<8);
+    const name           = new TextDecoder().decode(view.slice(offset+30, offset+30+nameLen));
+    const dataStart      = offset + 30 + nameLen + extraLen;
+    const compData       = view.slice(dataStart, dataStart + compressedSize);
+    try {
+      if (compression === 0) {
+        files[name] = compData;
+      } else if (compression === 8) {
+        const ds     = new DecompressionStream('deflate-raw');
+        const writer = ds.writable.getWriter();
+        const reader = ds.readable.getReader();
+        writer.write(compData);
+        writer.close();
+        const chunks = [];
+        let totalLen = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          totalLen += value.length;
+        }
+        const out = new Uint8Array(totalLen);
+        let pos = 0;
+        for (const c of chunks) { out.set(c, pos); pos += c.length; }
+        files[name] = out;
+      }
+    } catch(e) {}
+    offset = dataStart + compressedSize;
+  }
+  return files;
+}
+
+// ── ANNOTATION PIPELINE ──────────────────────────────────
+async function runAnnotationPipeline(chapters) {
+  const progressEl = document.getElementById('progressSection');
+  const resultsEl  = document.getElementById('resultsSection');
+  progressEl.style.display = 'block';
+  resultsEl.style.display  = 'none';
+  annotationResults = [];
+
+  await sleep(50);
+  progressEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const total = chapters.length;
+  document.getElementById('progressCount').textContent = `0 / ${total}`;
+  document.getElementById('progressFill').setAttribute('aria-valuemax', total);
+
+  const chapterList = document.getElementById('chapterList');
+  chapterList.innerHTML = chapters.map((ch, i) => `
+    <div class="chapter-item" id="ch-item-${i}" role="status" aria-label="${escHtml(ch.name)}: pending">
+      <div class="ch-dot pending" id="ch-dot-${i}"></div>
+      <div class="ch-name">${escHtml(ch.name)}</div>
+      <div class="ch-words">${ch.text.split(/\s+/).length} words</div>
+      <div class="bookmark-ribbon" aria-hidden="true"></div>
+    </div>`).join('');
+
+  for (let i = 0; i < chapters.length; i++) {
+    setChapterState(i, 'annotating');
+    document.getElementById('progressLabel').textContent = `Annotating "${chapters[i].name}"…`;
+    const item = document.getElementById(`ch-item-${i}`);
+    item.insertAdjacentHTML('beforeend', `<div class="ch-spinner" aria-hidden="true"></div>`);
+    await sleep(200);
+
+    let result;
+    try {
+      result = await annotateChapterAI(chapters[i], readingMode);
+    } catch(err) {
+      console.warn('AI annotation failed, using local fallback:', err.message);
+      result = annotateChapterLocal(chapters[i], readingMode);
+    }
+    annotationResults.push(result);
+
+    document.querySelector(`#ch-item-${i} .ch-spinner`)?.remove();
+    setChapterState(i, 'done');
+    const pct = ((i+1)/total)*100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressFill').setAttribute('aria-valuenow', i+1);
+    document.getElementById('progressCount').textContent = `${i+1} / ${total}`;
+    document.getElementById('ribbonFill').style.height = pct + '%';
+    await sleep(120);
+  }
+
+  document.getElementById('progressLabel').textContent = '✦ Annotation complete!';
+  await sleep(500);
+  renderResults();
+}
+
+function setChapterState(i, state) {
+  const item = document.getElementById(`ch-item-${i}`);
+  const dot  = document.getElementById(`ch-dot-${i}`);
+  if (!item || !dot) return;
+  item.classList.remove('annotating','done');
+  dot.classList.remove('pending','annotating','done');
+  if (state !== 'pending') item.classList.add(state);
+  dot.classList.add(state);
+  item.setAttribute('aria-label', `${item.querySelector('.ch-name').textContent}: ${state}`);
+}
+
+// ── GOOGLE GEMINI API CALL (FREE TIER) ───────────────────
+async function annotateChapterAI(chapter, mode) {
+  const chunkText = chapter.text.substring(0, 3000);
+
+  const jsonSchema = mode === 'course' ? `{
+  "annotations": [
+    {
+      "phrase": "exact substring from the text to highlight (max 150 chars)",
+      "type": "definition|key_idea|argument|example|cause_effect",
+      "color": "yellow|green|blue|pink",
+      "why": "1-2 sentence explanation of why this matters academically",
+      "write": "short margin note to write (max 60 chars)"
+    }
+  ],
+  "summary": "2-3 sentence summary for a student",
+  "tip": "one specific exam tip or study strategy"
+}` : `{
+  "annotations": [
+    {
+      "phrase": "exact substring from the text (max 150 chars)",
+      "type": "emotional_beat|dialogue|beautiful_writing|theme|character_moment",
+      "color": "yellow|green|blue|pink",
+      "why": "1-2 sentence literary/emotional significance",
+      "write": "short margin note or question (max 60 chars)"
+    }
+  ],
+  "summary": "2-3 sentence literary reading of this section",
+  "tip": "one personal reflection question for the reader"
+}`;
+
+  const systemPrompt = mode === 'course'
+    ? `You are an expert academic reading companion. Analyze the text and return ONLY valid JSON matching this schema. Up to 10 annotations. Color guide: yellow=definitions, green=key ideas/conclusions, blue=arguments/claims, pink=examples. Only use phrases that appear verbatim in the text.\n\nSchema: ${jsonSchema}`
+    : `You are a thoughtful literary companion. Analyze the text and return ONLY valid JSON matching this schema. Up to 10 annotations. Color guide: yellow=beautiful writing/imagery, green=themes/symbols, blue=dialogue/character moments, pink=emotional beats. Only use phrases that appear verbatim in the text.\n\nSchema: ${jsonSchema}`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: `Text to annotate:\n\n${chunkText}` }] }],
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0.3,
+          responseMimeType: 'application/json'
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await response.json();
+  // Gemini response format: data.candidates[0].content.parts[0].text
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // Extract JSON (might be wrapped in ```json blocks)
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('No JSON in Gemini response');
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  return {
+    name:        chapter.name,
+    text:        chapter.text,
+    annotations: (parsed.annotations || []).filter(a => a.phrase && chapter.text.includes(a.phrase.replace(/…$/, '').trim())),
+    summary:     parsed.summary || '',
+    tip:         parsed.tip || ''
+  };
+}
+
+// ── LOCAL FALLBACK ANNOTATOR ─────────────────────────────
+function annotateChapterLocal(chapter, mode) {
+  const sentences = chapter.text
+    .replace(/([.!?])\s+(?=[A-Z"'])/g, '$1\n')
+    .split(/\n|\r\n/)
+    .map(s => s.trim())
+    .filter(s => s.length > 15);
+
+  const annotations = [];
+
+  if (mode === 'course') {
+    for (const s of sentences) {
+      if (/\b(is defined as|refers to|means|is the process of|is known as|is called)\b/i.test(s) && s.length > 30 && annotations.filter(a=>a.type==='definition').length < 3)
+        annotations.push({ phrase: s.substring(0,150), type:'definition', color:'yellow', why:'Key term or concept definition — high-value study material.', write:'📖 DEF: '+s.split(' ').slice(0,4).join(' ') });
+      if (/\b(therefore|thus|consequently|this shows|this demonstrates|key|fundamental|crucial|essential|central)\b/i.test(s) && s.length > 40 && annotations.filter(a=>a.type==='key_idea').length < 3)
+        annotations.push({ phrase: s.substring(0,150), type:'key_idea', color:'green', why:'A key idea, conclusion, or theoretical principle.', write:'⭐ KEY IDEA' });
+      if (/\b(argues?|contends?|according to|scholars?|researchers?|however|nevertheless|in contrast)\b/i.test(s) && s.length > 45 && annotations.filter(a=>a.type==='argument').length < 2)
+        annotations.push({ phrase: s.substring(0,150), type:'argument', color:'blue', why:'A scholarly argument, counterargument, or supported claim.', write:'💡 ARGUE — note the source' });
+      if (/\b(for example|for instance|such as|e\.g\.|consider|demonstrates?)\b/i.test(s) && s.length > 40 && annotations.filter(a=>a.type==='example').length < 2)
+        annotations.push({ phrase: s.substring(0,150), type:'example', color:'pink', why:'A concrete example — anchors abstract concepts.', write:'EX → link to theory' });
+    }
+  } else {
+    for (const s of sentences) {
+      if (/\b(felt|heart|tears?|cry|fear|love|grief|joy|pain|hope|despair|rage|alone|hollow|ache|burning)\b/i.test(s) && s.length > 35 && annotations.filter(a=>a.type==='emotional_beat').length < 4)
+        annotations.push({ phrase: s.substring(0,150), type:'emotional_beat', color:'pink', why:'An emotionally charged moment — key to character psychology.', write:'💔 FEEL: what does this tell us?' });
+      if (/["'"]/.test(s) && s.length > 30 && annotations.filter(a=>a.type==='dialogue').length < 2)
+        annotations.push({ phrase: s.substring(0,150), type:'dialogue', color:'blue', why:'Dialogue reveals character voice and relationship dynamics.', write:'💬 Who speaks? Why?' });
+      if (/\b(like a|as if|as though|resembled)\b/i.test(s) && s.length > 40 && annotations.filter(a=>a.type==='beautiful_writing').length < 2)
+        annotations.push({ phrase: s.substring(0,150), type:'beautiful_writing', color:'yellow', why:"A literary device — simile, metaphor, or strong imagery.", write:'✍️ STYLE: note the device' });
+      if (/\b(power|freedom|identity|death|love|justice|truth|memory|time|loss|belonging|duty|fate)\b/i.test(s) && s.length > 40 && annotations.filter(a=>a.type==='theme').length < 2)
+        annotations.push({ phrase: s.substring(0,150), type:'theme', color:'green', why:'Engages a central theme of the work.', write:'🌿 THEME — how does this develop it?' });
+    }
+  }
+
+  const summary = mode === 'course'
+    ? `This section covers ${annotations.filter(a=>a.type==='definition').length} key definition(s) and ${annotations.filter(a=>a.type==='key_idea').length} major idea(s). Review the highlighted passages for exam preparation.`
+    : `A pivotal section with emotional depth and thematic resonance. Pay attention to the highlighted passages for the author's craft.`;
+  const tip = mode === 'course'
+    ? `📝 Create a one-paragraph summary in your own words — if you can explain these ideas without the text, you understand them.`
+    : `💭 If you could ask the author one question about this section, what would it be?`;
+
+  return { name: chapter.name, text: chapter.text, annotations, summary, tip };
+}
+
+// ── RENDER RESULTS ───────────────────────────────────────
+function renderResults() {
+  const resultsEl = document.getElementById('resultsSection');
+  resultsEl.style.display = 'block';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+
+  // Legend
+  const legendItems = readingMode === 'course'
+    ? [
+        { cls:'sw-yellow', label:'Definitions' },
+        { cls:'sw-green',  label:'Key Ideas & Conclusions' },
+        { cls:'sw-blue',   label:'Arguments & Claims' },
+        { cls:'sw-pink',   label:'Examples' },
+      ]
+    : [
+        { cls:'sw-yellow', label:'Beautiful Writing' },
+        { cls:'sw-green',  label:'Themes & Symbols' },
+        { cls:'sw-blue',   label:'Dialogue & Character Moments' },
+        { cls:'sw-pink',   label:'Emotional Beats' },
+      ];
+
+  document.getElementById('legendBox').innerHTML = legendItems.map(it => `
+    <div class="legend-item">
+      <div class="legend-swatch ${it.cls}"></div>
+      <span>${it.label}</span>
+    </div>`).join('');
+
+  const container = document.getElementById('chaptersContainer');
+  container.innerHTML = '';
+
+  annotationResults.forEach((result, idx) => {
+    const delay = idx * 120;
+    const block = document.createElement('div');
+    block.className = 'chapter-result';
+    block.style.animationDelay = delay + 'ms';
+
+    const notesHtml = buildNotesGrid(result.annotations, idx);
+    const annotatedHtml = buildAnnotatedHtml(result.text, result.annotations);
+
+    block.innerHTML = `
+      <div class="chapter-result-heading">
+        <div class="ch-num-badge" aria-hidden="true">${idx+1}</div>
+        <h2 class="ch-result-title">${escHtml(result.name)}</h2>
+      </div>
+
+      <div class="annotated-text" id="ann-text-${idx}">${annotatedHtml}</div>
+
+      ${result.annotations.length ? `
+        <div class="notes-section-title" aria-label="Margin notes">📌 Margin Notes</div>
+        <div class="notes-grid" id="notes-grid-${idx}">${notesHtml}</div>
+      ` : ''}
+
+      <div class="summary-box">
+        <h4>§ Section Summary</h4>
+        <p>${escHtml(result.summary)}</p>
+        <div class="tip-box">${escHtml(result.tip)}</div>
+      </div>
+    `;
+    container.appendChild(block);
+
+    // Stagger margin note reveal animations
+    setTimeout(() => triggerNoteAnimations(idx), delay + 700);
+    // Stagger highlight reveal
+    setTimeout(() => triggerHighlightAnimations(idx), delay + 400);
+  });
+}
+
+function triggerHighlightAnimations(idx) {
+  const container = document.getElementById(`ann-text-${idx}`);
+  if (!container) return;
+  const marks = container.querySelectorAll('mark');
+  marks.forEach((mark, i) => {
+    setTimeout(() => mark.classList.add('hl-reveal'), i * 65);
+  });
+}
+
+function triggerNoteAnimations(idx) {
+  const grid = document.getElementById(`notes-grid-${idx}`);
+  if (!grid) return;
+  const cards = grid.querySelectorAll('.note-card');
+  cards.forEach((card, i) => {
+    setTimeout(() => card.classList.add('note-revealed'), i * 80);
+  });
+}
+
+// ── BUILD ANNOTATED HTML ─────────────────────────────────
+function buildAnnotatedHtml(text, annotations) {
+  const sorted = [...annotations]
+    .map(a => ({ ...a, clean: a.phrase.replace(/…$/, '').trim() }))
+    .filter(a => a.clean.length >= 6)
+    .sort((a, b) => b.clean.length - a.clean.length);
+
+  const used = new Set();
+  const segs = [];
+
+  for (const ann of sorted) {
+    const phrase = ann.clean;
+    const idx = text.indexOf(phrase);
+    if (idx === -1) continue;
+    let overlap = false;
+    for (let c = idx; c < idx + phrase.length; c++) {
+      if (used.has(c)) { overlap = true; break; }
+    }
+    if (overlap) continue;
+    for (let c = idx; c < idx + phrase.length; c++) used.add(c);
+    const cls = { yellow:'hl-yellow', green:'hl-green', blue:'hl-blue', pink:'hl-pink' }[ann.color] || 'hl-yellow';
+    segs.push({ start: idx, end: idx + phrase.length, cls, why: ann.why });
+  }
+  segs.sort((a, b) => a.start - b.start);
+
+  let html = '';
+  let cursor = 0;
+  for (const seg of segs) {
+    if (seg.start > cursor) html += escHtml(text.slice(cursor, seg.start));
+    html += `<mark class="${seg.cls}" title="${escHtml(seg.why)}">${escHtml(text.slice(seg.start, seg.end))}</mark>`;
+    cursor = seg.end;
+  }
+  if (cursor < text.length) html += escHtml(text.slice(cursor));
+  return html;
+}
+
+// ── BUILD NOTES GRID ─────────────────────────────────────
+function buildNotesGrid(annotations, idx) {
+  return annotations.slice(0, 12).map((ann, i) => {
+    const tagCls = { yellow:'tag-yellow', green:'tag-green', blue:'tag-blue', pink:'tag-pink' }[ann.color] || 'tag-yellow';
+    const typeFmt = (ann.type || '').replace(/_/g, ' ');
+    return `
+      <div class="note-card" aria-label="${typeFmt} note: ${escHtml(ann.phrase.substring(0,60))}">
+        <span class="note-type-tag ${tagCls}">${escHtml(typeFmt)}</span>
+        <div class="note-quote">"${escHtml(ann.phrase.substring(0,120))}${ann.phrase.length>120?'…':''}"</div>
+        <div class="note-why">${escHtml(ann.why)}</div>
+        <div class="note-write-label">✏️ Write in margin:</div>
+        <div class="note-write">${escHtml(ann.write)}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── EXPORT ───────────────────────────────────────────────
+function downloadAnnotations() {
+  let md = `# Marginalia — Annotations\n_Generated ${new Date().toLocaleDateString()} · Mode: ${readingMode === 'course' ? 'Coursebook' : 'Novel'}_\n\n---\n\n`;
+  for (const r of annotationResults) {
+    md += `## ${r.name}\n\n**Summary:** ${r.summary}\n\n**${readingMode === 'course' ? 'Exam Tip' : 'Reader Note'}:** ${r.tip}\n\n### Margin Notes\n\n`;
+    for (const a of r.annotations) {
+      md += `**[${(a.type||'').toUpperCase().replace(/_/g,' ')}]** "${a.phrase}"\n> *Why:* ${a.why}\n> *Margin:* ${a.write}\n\n`;
+    }
+    md += `---\n\n`;
+  }
+  const blob = new Blob([md], { type:'text/markdown' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'marginalia-annotations.md'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Annotations exported ✓', 'success');
+}
+
+async function copyAllNotes() {
+  let txt = '';
+  for (const r of annotationResults) {
+    txt += `== ${r.name} ==\n`;
+    for (const a of r.annotations) txt += `[${(a.type||'').replace(/_/g,' ')}] "${a.phrase}"\n  → ${a.write}\n`;
+    txt += '\n';
+  }
+  if (await copyTextToClipboard(txt)) {
+    showToast('All notes copied ✓', 'success');
+  } else {
+    showToast('Could not copy to clipboard.', 'error');
+  }
+}
+
+// Clipboard copy with execCommand fallback for file:// / non-HTTPS contexts
+// where navigator.clipboard.writeText is unavailable or blocked.
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch(_) { /* fall through to legacy path */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch(_) {
+    return false;
+  }
+}
+
+function startOver() {
+  annotationResults = [];
+  sectionQueue      = [];
+  uploadedFile      = null;
+  document.getElementById('fileChipContainer').innerHTML = '';
+  fileInput.value   = '';
+  const btn = document.getElementById('annotateFileBtn');
+  btn.disabled = true;
+  btn.setAttribute('aria-disabled', 'true');
+  document.getElementById('annotateFileIcon').textContent = '📕';
+  document.getElementById('sectionName').value = '';
+  document.getElementById('sectionText').value = '';
+  document.getElementById('queueList').innerHTML = '';
+  document.getElementById('progressSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display  = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('ribbonFill').style.height = '0%';
+  document.getElementById('chapterList').innerHTML = '';
+  document.getElementById('chaptersContainer').innerHTML = '';
+  window.scrollTo({ top:0, behavior:'smooth' });
+  showToast('Ready for a new book 📚', 'success');
+}
+
+// ── LOADING STATE ────────────────────────────────────────
+function setLoading(show) {
+  const fb = document.getElementById('annotateFileBtn');
+  const pb = document.getElementById('annotatePasteBtn');
+  if (fb) fb.disabled = show || !uploadedFile || annotationResults.length > 0;
+  if (pb) pb.disabled = show;
+}
+
+// ── TOAST ────────────────────────────────────────────────
+function showToast(msg, type='') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = msg;
+  toast.setAttribute('role', 'alert');
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 3200);
+}
+
+// ── HELPERS ──────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function stripHtml(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,'')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,'')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+    .replace(/\s{3,}/g,' ');
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
