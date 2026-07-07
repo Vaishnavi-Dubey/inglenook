@@ -1,94 +1,147 @@
-# 🏡 Inglenook: Your Cozy Illustrated Reading Room & Tracker
+# Inglenook: Cozy Illustrated Reading Room & Tracker
 
-Welcome to **Inglenook**, a beautiful, local-first interactive reading room and book tracking application designed to make cataloging your library a cozy, tactile experience. 
-
-Instead of dealing with boring tables and grids, Inglenook welcomes you into a virtual reading room. Everything is fully client-side and **local-first**—your books, reading goals, quotes, and history are saved directly in your browser's LocalStorage.
+> A beautiful, local-first interactive reading room and book tracking application designed to make cataloging your library a cozy, tactile experience.
 
 ---
 
-## 📸 Room & Feature Highlights
+## Overview
 
-### 🌅 The Cozy Reading Room
-An illustrated, interactive room that reflects your real-world library. Click the hanging lamp pull-string to transition from warm daylight into dark mode.
-
-| ☀️ Daylight Room (Light Mode) | 🌙 Midnight Room (Dark Mode) |
-| :---: | :---: |
-| ![Inglenook Room](assets/inglenook_room.png) | ![Inglenook Room Dark](assets/inglenook_dark.png) |
+**Inglenook** welcomes you into a virtual, illustrated reading room. Instead of boring tables and spreadsheets, your reading progress, goals, quotes, and history are visualized directly inside a cozy room layout. Everything runs 100% client-side and **local-first**—your library data is persisted securely in your browser's LocalStorage.
 
 ---
 
-### 🐈 Mr. Whiskers: The Interactive Cat Companion (Hidden Feature!)
-Click the sleeping cat on the armchair to watch Mr. Whiskers wake up, crouch, leap onto the bookshelf, strut across it, swipe a book off, and jump back down to resume his nap.
+## Features
 
-| 🐈 Strutting on the Shelf | 💥 Swiping a Book Off |
-| :---: | :---: |
-| ![Cat Struts](assets/cat_walking_on_shelf.png) | ![Cat Swipes](assets/cat_knocking_book.png) |
-
----
-
-### 📊 Library Analytics & Discovery
-Explore curated lists, search for millions of books using the Open Library API, or check your reading statistics (genre donut charts, reading pace, page-count limits).
-
-| 🔍 Explore & Add | 📈 Library Statistics |
-| :---: | :---: |
-| ![Explore View](assets/inglenook_explore.png) | ![Stats View](assets/inglenook_stats.png) |
+- **🌅 Cozy Reading Room**: An illustrated, interactive room reflecting your library. Click the hanging lamp pull-string to dim the room and toggle light/dark themes.
+- **🐈 Mr. Whiskers (Interactive Companion)**: Click the sleeping cat on the armchair to watch him climb the shelf, strut, and playfully knock a book off with realistic bouncing physics.
+- **📊 Library Analytics & Discovery**: Explore curated lists, search using the Open Library API, and view statistics (genre donut charts, reading pace, page-count limits).
+- **☕ Tea Cup Pomodoro**: Click the steaming tea cup sitting next to your reading chair to start a 25-minute reading timer.
+- **🌦️ Geolocation Weather Sync**: Uses open meteo coordinates to sync the view outside the reading room window with your real-world local weather (rain, snow, clouds, or sun).
+- **🌿 Seasonal Plant & Forgotten Cobwebs**: Potted plant near the fireplace changes based on the season. If you neglect your library, spiderwebs slowly spin in the bookshelf corners!
+- **🏆 Book Tournament**: Pit your favorite books against one another in a head-to-head bracket tournament.
+- **🪦 The Book Graveyard**: Deleted books are sent to the "Graveyard of the Unfinished" with custom epitaphs.
 
 ---
 
-## ✨ Cozy Interactive Mechanics & Easter Eggs
+## Tech Stack
 
-Inglenook is packed with hidden, interactive details:
-
-* **🐈 Mr. Whiskers' Shelf Adventure:** Click the sleeping cat on the left armchair to trigger his shelf-climbing adventure. The book he knocks off falls to the floor with custom physics and bounces!
-* **💡 Pull-String Lamp:** A fully interactive pull-string hanging brass lamp that dims the room and toggles light/dark themes.
-* **☕ Tea Cup Pomodoro:** Click the steaming tea cup sitting next to your reading chair to start a 25-minute reading timer.
-* **🌦️ Geolocation Weather Sync:** Connects to the [Open-Meteo API](https://open-meteo.com/) (privacy-friendly, no keys required) to match the view outside your window with your actual local weather (rain, snow, clouds, or sun).
-* **🌿 Seasonal Plant:** The potted plant near the fireplace adjusts its appearance dynamically based on the current season of the year in your region.
-* **👣 Footsteps Heatmap:** The more books you read and update, the more footstep patterns begin to lightly burn into the wooden floorboards, indicating your path through the room.
-* **📚 Book Spine Physics:** Book spines on the shelf scale dynamically based on the page counts of the books. Heavier volumes look thicker and taller!
-* **🕸️ Forgotten Cobwebs:** If you go a long time without reading or cataloging books, spiderwebs will slowly begin to spin in the upper corners of your bookshelves.
-* **🏆 Book Tournament:** Pit your favorite books against one another in a head-to-head bracket tournament to crown your ultimate read of the year.
-* **🪦 The Book Graveyard:** Deleted books are sent to the "Graveyard of the Unfinished" with custom epitaphs.
-* **🌌 Constellation Map:** Maps your favorite genres to stars and constellations in the night sky.
-* **🧬 Reading DNA Helix:** Visualizes your reading logs as a custom double-helix gene map.
-* **🌕 Haunted Moon Mode:** During a real-world full moon, the window turns spooky and the cat's eyes glow crimson.
-* **⌨️ Keyboard Mode:** Support for keyboard shortcuts (including Vim bindings) for mouse-free navigation.
+- **Languages**: HTML5, CSS3, JavaScript (ES6+)
+- **APIs**:
+  - **Open Library API** (Book metadata & covers)
+  - **Open-Meteo API** (Privacy-friendly local weather sync)
+- **Libraries**:
+  - **Compromise.js** (NLP-based book quote parsing)
+- **Testing**:
+  - **Playwright** (End-to-End browser test suite)
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## Architecture
 
-* **Structure:** Semantic HTML5 layout.
-* **Design & Styling:** Custom CSS3 with custom variables, smooth transitions, custom scrollbars, and a warm, bookish design system. An SVG noise-filter paper overlay is applied across the room to give the graphics a rich, tactile texture.
-* **Logic & State:** Pure ES6+ JavaScript. The entire application runs client-side with states stored in browser `localStorage`.
-* **APIs & Libraries:**
-  * **[Open Library API](https://openlibrary.org/developers/api)** for rich book searches and cover metadata.
-  * **[Open-Meteo API](https://open-meteo.com/)** for live weather conditions.
-* **E2E Testing:** Playwright test suite for multi-browser and UI automation tests.
+Inglenook is structured as a modular static application:
+- **State Management**: LocalStorage handles all library database states, reading pace, and custom settings.
+- **Dynamic CSS variables**: Controls day/night shading, weather layers, and animations (such as the cat adventure or book spine scaling).
+- **Cover Proxying**: Integrates Open Library cover IDs for responsive cover rendering.
 
 ---
 
-## 🚀 Quick Start
+## Folder Structure
 
-Since Inglenook has no backend server dependencies, you can open and run it directly in your browser:
-
-1. Double-click `inglenook.html` in your file explorer.
-2. (Optional but recommended) Run a local server to avoid CORS limitations with external cover assets:
-   ```bash
-   npm install
-   npx serve .
-   ```
+```text
+Annotator/
+├── assets/
+│   ├── screenshots/       # App screenshots
+│   │   ├── home.png
+│   │   ├── inglenook.png
+│   │   ├── reading-vault.png
+│   │   └── board.png
+│   ├── cat_knocking_book.png
+│   ├── cat_walking_on_shelf.png
+│   ├── inglenook_dark.png
+│   ├── inglenook_explore.png
+│   ├── inglenook_room.png
+│   ├── inglenook_stats.png
+│   └── inglenook_tbr.png
+├── index.html             # Room and shell landing page
+├── inglenook.html         # Book catalog and analytics dashboard
+├── reading-vault.html     # Vault view of read books
+├── board.html             # Interactive text editor and NLP quote extractor
+├── package.json
+├── playwright.config.js
+└── tests/                 # Automated test suite
+```
 
 ---
 
-## 🧪 Tests
+## Installation
 
-To run the automated E2E test suite (which includes tests for the room rendering, panel animations, navigation views, and stats):
+### Prerequisites
+
+No server setup is required. To install dependencies for testing or local serving:
 
 ```bash
-# Install browsers
-npx playwright install
-
-# Run all tests
-npx playwright test tests/full_test.spec.js --reporter=list
+cd Annotator
+npm install
 ```
+
+---
+
+## Running the Project
+
+### Static Opening
+
+Since Inglenook is backend-free, you can open and run it directly in your browser:
+Double-click `index.html` inside your file browser.
+
+### Local Server Serving (Recommended)
+
+To avoid CORS restrictions on external cover assets:
+```bash
+npx http-server -p 8080
+```
+Then navigate to [http://localhost:8080](http://localhost:8080).
+
+---
+
+## Screenshots
+
+### Coziest Reading Room (Home)
+![Cozy Reading Room](assets/screenshots/home.png)
+
+### Library Catalogue (Inglenook)
+![Library Catalogue](assets/screenshots/inglenook.png)
+
+### Reading Vault
+![Reading Vault](assets/screenshots/reading-vault.png)
+
+### NLP Quote Extractor & Board
+![NLP Board](assets/screenshots/board.png)
+
+---
+
+## Workflow
+
+1. **Enter Room**: Toggle the brass lamp string to choose your ambiance. Start the tea Pomodoro timer.
+2. **Search & Catalog**: Go to the **Inglenook** dashboard, search for your favorite book, and add it to your TBR or Currently Reading shelf.
+3. **Log Progress**: Click on your shelf, update read page counts, and watch the wooden floor footprint heatmap darken.
+4. **Extract Quotes**: Go to **Board**, upload text or paste chapters to extract quotes using NLP, and pin them to your vault board.
+
+---
+
+## Future Improvements
+
+- [ ] Support custom shelf styling and shelf categories.
+- [ ] Add CSV export/import for GoodReads integration.
+- [ ] Add sound effects (fireplace crackling, rain tapping).
+
+---
+
+## Author
+
+- **GitHub Profile**: [Vaishnavi Dubey](https://github.com/Vaishnavi-Dubey)
+
+---
+
+## License
+
+This project is licensed under the MIT License.
