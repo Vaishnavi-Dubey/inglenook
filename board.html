@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Board — Inglenook</title>
+<meta name="description" content="A living detective board: AI extracts every character, place, organisation, and event from a book and pins them onto a corkboard connected by red strings."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<!-- pdf.js for PDF ingestion (matches reading-vault.html) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
+<!-- compromise.js for the Offline engine (English NER) — bundled locally so
+     the "Offline" mode actually works offline. -->
+<script src="assets/vendor/compromise.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   THE BOARD — dark corkboard detective view for Inglenook
+   Palette matches inglenook.html but shifted to night-mode only.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --cork:            #2C1A0E;
+  --cork-deep:       #1F1108;
+  --cork-warm:       #3A2416;
+  --cream:           #F5E6C8;
+  --cream-dim:       #E8D6AF;
+  --espresso:        #2C1810;
+  --gold:            #C9A15A;
+  --gold-soft:       #8F7238;
+  --red-string:      #C0392B;
+  --red-string-glow: #E85B4A;
+  --ink-muted:       rgba(245, 230, 200, 0.55);
+  --panel:           #241609;
+  --panel-line:      rgba(201, 161, 90, 0.22);
+  --danger:          #E85B4A;
+  --success:         #7FB27A;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--cork);
+  color: var(--cream);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  /* subtle cork dot texture */
+  background-image: radial-gradient(circle at 14px 14px, rgba(255,210,150,0.045) 1.2px, transparent 1.3px);
+  background-size: 28px 28px;
+}
+h1, h2, h3, .display { font-family: 'Playfair Display', serif; }
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--red-string-glow); }
+
+.top-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 34px;
+  border-bottom: 1px solid var(--panel-line);
+  background: linear-gradient(180deg, rgba(31,17,8,0.85), rgba(31,17,8,0.55));
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(6px);
+}
+.brand {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--cream);
+}
+.brand .accent { color: var(--red-string-glow); }
+.top-nav .links a {
+  margin-left: 24px;
+  font-size: 13px;
+  color: var(--cream-dim);
+  letter-spacing: 0.04em;
+}
+.top-nav .links a.active { color: var(--gold); }
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 36px 28px 120px;
+}
+
+.hero {
+  padding: 22px 0 30px;
+}
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 42px;
+  letter-spacing: 0.01em;
+  color: var(--cream);
+}
+.hero h1 .accent { color: var(--red-string); font-style: italic; }
+.hero p {
+  margin: 0;
+  color: var(--cream-dim);
+  max-width: 640px;
+  font-size: 15px;
+}
+
+.phase-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid var(--gold-soft);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+}
+
+/* ── Cards / panels ───────────────────────────────────────────── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-top: 22px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+.panel h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: var(--cream);
+}
+.panel .subtitle {
+  margin: 0 0 18px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--panel-line);
+  margin-bottom: 18px;
+}
+.tab-btn {
+  background: transparent;
+  border: 0;
+  color: var(--cream-dim);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 16px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  position: relative;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.2s;
+}
+.tab-btn:hover { color: var(--cream); }
+.tab-btn.active {
+  color: var(--gold);
+  background: rgba(201, 161, 90, 0.06);
+}
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 12px; right: 12px; bottom: -1px;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 2px 2px 0 0;
+}
+
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Form controls ───────────────────────────────────────────── */
+label { display: block; font-size: 12px; color: var(--cream-dim); margin-bottom: 6px; letter-spacing: 0.04em; }
+.input, .textarea, .file-input {
+  width: 100%;
+  background: var(--cork-deep);
+  border: 1px solid var(--panel-line);
+  color: var(--cream);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus, .textarea:focus {
+  border-color: var(--gold-soft);
+  box-shadow: 0 0 0 3px rgba(201, 161, 90, 0.12);
+}
+.textarea { min-height: 160px; resize: vertical; font-family: 'DM Sans', system-ui, sans-serif; }
+.file-input { padding: 10px 14px; cursor: pointer; }
+.hint { font-size: 11px; color: var(--ink-muted); margin-top: 6px; }
+
+.row { display: flex; gap: 10px; align-items: stretch; }
+.row .input { flex: 1; }
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--gold-soft);
+  background: linear-gradient(180deg, rgba(201,161,90,0.16), rgba(201,161,90,0.05));
+  color: var(--cream);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: linear-gradient(180deg, rgba(201,161,90,0.28), rgba(201,161,90,0.08)); border-color: var(--gold); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary {
+  border-color: var(--red-string);
+  background: linear-gradient(180deg, rgba(192,57,43,0.5), rgba(192,57,43,0.2));
+  color: #fff;
+}
+.btn.primary:hover { border-color: var(--red-string-glow); background: linear-gradient(180deg, rgba(232,91,74,0.55), rgba(192,57,43,0.25)); }
+.btn.ghost {
+  background: transparent;
+  border-color: var(--panel-line);
+  color: var(--cream-dim);
+}
+.btn.ghost:hover { color: var(--cream); border-color: var(--gold-soft); }
+
+/* ── Status pill ─────────────────────────────────────────────── */
+.status {
+  display: none;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  border: 1px solid var(--panel-line);
+  background: var(--cork-deep);
+}
+.status.show { display: block; }
+.status.error { border-color: rgba(232, 91, 74, 0.55); color: var(--danger); }
+.status.ok    { border-color: rgba(127, 178, 122, 0.4); color: var(--success); }
+.status.busy  { border-color: var(--gold-soft); color: var(--gold); }
+
+/* ── Preview ─────────────────────────────────────────────────── */
+.preview-meta {
+  display: flex; flex-wrap: wrap; gap: 20px;
+  padding: 14px 16px;
+  background: var(--cork-deep);
+  border: 1px solid var(--panel-line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+.preview-meta .item { font-size: 12px; color: var(--cream-dim); }
+.preview-meta .item strong { display: block; color: var(--cream); font-size: 14px; margin-bottom: 2px; font-family: 'Playfair Display', serif; }
+.preview-body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--cream-dim);
+  padding: 14px 16px;
+  background: var(--cork-deep);
+  border: 1px solid var(--panel-line);
+  border-radius: 10px;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.chapter-list {
+  margin-top: 10px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  font-size: 11px;
+}
+.chapter-list .chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-line);
+  color: var(--cream-dim);
+  background: rgba(201,161,90,0.04);
+}
+
+/* ── Results (Phase 1 verification) ─────────────────────────── */
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 800px) { .result-grid { grid-template-columns: 1fr; } }
+
+.entity-card, .edge-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-line);
+  background: var(--cork-deep);
+  margin-bottom: 8px;
+}
+.entity-card .name {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  color: var(--cream);
+  font-weight: 700;
+}
+.entity-card .type-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  border-radius: 999px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.type-person       { background: #F5E6C8; color: #4A2D17; }
+.type-place        { background: #D4E6C3; color: #2E4A1F; }
+.type-organisation { background: #C3D4E6; color: #1F3A5C; }
+.type-event        { background: #F5D6A0; color: #6B3A0F; }
+.type-object       { background: #E6C3C3; color: #6B1F1F; }
+.entity-card .desc { margin-top: 6px; font-size: 12px; color: var(--cream-dim); }
+.entity-card .quote { margin-top: 6px; font-size: 11px; font-style: italic; color: var(--ink-muted); }
+
+.edge-card {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+}
+.edge-card .src, .edge-card .tgt {
+  padding: 3px 9px;
+  background: rgba(245, 230, 200, 0.08);
+  border-radius: 6px;
+  color: var(--cream);
+  font-weight: 500;
+}
+.edge-card .rel {
+  color: var(--red-string-glow);
+  font-style: italic;
+}
+.edge-card .strength {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--ink-muted);
+  letter-spacing: 0.1em;
+}
+
+details.raw-json {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px dashed var(--panel-line);
+  border-radius: 10px;
+  color: var(--cream-dim);
+  font-size: 12px;
+}
+details.raw-json summary { cursor: pointer; color: var(--gold); }
+details.raw-json pre {
+  margin: 10px 0 0;
+  padding: 10px;
+  background: var(--cork-deep);
+  border-radius: 8px;
+  max-height: 320px;
+  overflow: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: var(--cream-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* API key nudge */
+.engine-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+select.input {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%),
+                    linear-gradient(135deg, var(--gold) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 30px;
+  cursor: pointer;
+}
+.key-nudge {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(232,91,74,0.35);
+  background: rgba(232,91,74,0.06);
+  font-size: 12px;
+  color: var(--cream);
+  margin-bottom: 14px;
+  display: none;
+}
+.key-nudge.show { display: block; }
+.key-nudge code {
+  background: rgba(0,0,0,0.35);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--gold);
+}
+
+/* Loader dots */
+.dots::after {
+  content: '';
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: dots 1.2s steps(4, end) infinite;
+}
+@keyframes dots {
+  0%   { content: ''; }
+  25%  { content: '·'; }
+  50%  { content: '··'; }
+  75%  { content: '···'; }
+  100% { content: ''; }
+}
+
+footer.foot {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--panel-line);
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="brand">Inglenook <span class="accent">·</span> The Board</div>
+  <div class="links">
+    <a href="inglenook.html">← My Room</a>
+    <a href="reading-vault.html">Reading Vault</a>
+    <a href="board.html" class="active">The Board</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="hero">
+    <span class="phase-badge">Phase 1 · Ingestion Pipeline</span>
+    <h1>Every clue on the <span class="accent">wall</span>.</h1>
+    <p>Give it a book, an article, or a link. It reads every chapter, extracts the characters, places, organisations, and events, and maps how they connect. This first release verifies the pipeline end-to-end on Chapter 1 — the interactive corkboard ships next.</p>
+  </div>
+
+  <!-- API key nudge -->
+  <div class="key-nudge" id="keyNudge">
+    <strong>OpenRouter engine selected but no key found.</strong> Add one in <a href="reading-vault.html">Reading Vault settings</a> (<code>vault_settings.openrouterKey</code>), or switch to a different engine below.
+  </div>
+
+  <!-- ── Engine settings ──────────────────────────────────────── -->
+  <div class="panel">
+    <h2>AI engine</h2>
+    <p class="subtitle">How the entities and connections get extracted</p>
+
+    <div class="engine-row">
+      <div style="flex:1; min-width:220px;">
+        <label for="engineSelect">Engine</label>
+        <select class="input" id="engineSelect">
+          <option value="openrouter">OpenRouter (cloud, needs key) — best quality</option>
+          <option value="ollama">Ollama (local LLM at localhost:11434)</option>
+          <option value="offline">Offline (compromise.js, no network)</option>
+          <option value="webllm">WebLLM (in-browser LLM via WebGPU)</option>
+        </select>
+      </div>
+
+      <!-- Ollama config -->
+      <div class="engine-config" data-engine="ollama" style="flex:1; min-width:220px; display:none;">
+        <label for="ollamaModel">Ollama model</label>
+        <input class="input" type="text" id="ollamaModel" placeholder="llama3.2:3b" value="llama3.2:3b"/>
+      </div>
+
+      <!-- WebLLM config -->
+      <div class="engine-config" data-engine="webllm" style="flex:1; min-width:220px; display:none;">
+        <label for="webllmModel">WebLLM model</label>
+        <select class="input" id="webllmModel">
+          <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (fastest, ~700 MB) — recommended</option>
+          <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 3B (~1.7 GB, slower)</option>
+          <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen 2.5 3B (~2 GB)</option>
+          <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 mini (~2.3 GB)</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="engine-help" data-engine="openrouter" style="font-size:12px; color:var(--ink-muted); margin:12px 0 0;">
+      Cascades through free models (qwen3-next → gpt-oss → gemma-4). Best quality, requires an OpenRouter API key set in <a href="reading-vault.html">Reading Vault settings</a>.
+    </p>
+    <p class="engine-help" data-engine="ollama" style="font-size:12px; color:var(--ink-muted); margin:12px 0 0; display:none;">
+      Runs a real LLM on <em>your</em> machine — private, offline, no key. One-time setup:<br/>
+      <code style="display:inline-block; margin-top:4px;">brew install ollama &amp;&amp; ollama pull llama3.2:3b</code><br/>
+      Then start Ollama with CORS enabled: <code>OLLAMA_ORIGINS=* ollama serve</code>
+    </p>
+    <p class="engine-help" data-engine="offline" style="font-size:12px; color:var(--ink-muted); margin:12px 0 0; display:none;">
+      100% offline. Uses <code>compromise.js</code> for named-entity recognition (people, places, orgs) and derives connections from sentence co-occurrence. Fast and free, but no LLM-quality descriptions.
+    </p>
+    <p class="engine-help" data-engine="webllm" style="font-size:12px; color:var(--ink-muted); margin:12px 0 0; display:none;">
+      Runs a real LLM entirely in your browser via WebGPU. Requires Chrome/Edge/Arc on desktop.<br/>
+      <strong>Heads up:</strong> first run downloads ~700 MB (1B model) or ~1.7 GB (3B), then compiles shaders. Even after that, in-browser generation is <em>much slower</em> than a cloud API — expect ~30–90 seconds per chapter on a typical laptop.
+      Need instant results? Switch to <a href="#" id="webllmSwitchOffline" style="color:var(--gold);">Offline mode</a>.
+    </p>
+  </div>
+
+  <!-- ── Source input ─────────────────────────────────────────── -->
+  <div class="panel">
+    <h2>Feed the board</h2>
+    <p class="subtitle">Three ways in</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="upload">📄 Upload file</button>
+      <button class="tab-btn" data-tab="url">🔗 URL / link</button>
+      <button class="tab-btn" data-tab="paste">📝 Paste text</button>
+    </div>
+
+    <!-- Upload -->
+    <div class="tab-pane active" id="pane-upload">
+      <label for="fileInput">PDF, EPUB, or plain text</label>
+      <input class="file-input" type="file" id="fileInput" accept=".pdf,.epub,.txt"/>
+      <div class="hint">Uses the same extractor as the Marginalia annotator.</div>
+    </div>
+
+    <!-- URL -->
+    <div class="tab-pane" id="pane-url">
+      <label for="urlInput">Paste a public URL — Project Gutenberg, Wikipedia, news, blogs</label>
+      <div class="row">
+        <input class="input" type="url" id="urlInput" placeholder="https://www.gutenberg.org/files/1661/1661-0.txt"/>
+        <button class="btn" id="urlFetchBtn">Fetch</button>
+      </div>
+      <div class="hint">Works for Project Gutenberg, Wikipedia, most articles/blogs — and <strong>PDFs served from URLs too</strong>. Uses <code>r.jina.ai</code> (LLM-ready reader, free) with <code>allorigins.win</code> as fallback. JS-only apps (Twitter/X) still need a paste or upload.</div>
+    </div>
+
+    <!-- Paste -->
+    <div class="tab-pane" id="pane-paste">
+      <label for="pasteTitle">Title</label>
+      <input class="input" type="text" id="pasteTitle" placeholder="Untitled fragment"/>
+      <label for="pasteInput" style="margin-top:12px;">Paste your text</label>
+      <textarea class="textarea" id="pasteInput" placeholder="Paste a chapter, a whole book, an article…"></textarea>
+      <button class="btn" id="pasteLoadBtn" style="margin-top:10px;">Load into preview</button>
+    </div>
+
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <!-- ── Preview ──────────────────────────────────────────────── -->
+  <div class="panel" id="previewPanel" style="display:none;">
+    <h2>Preview</h2>
+    <p class="subtitle">Confirm before the AI reads it</p>
+
+    <div class="preview-meta">
+      <div class="item"><strong id="pvTitle">—</strong>Detected title</div>
+      <div class="item"><strong id="pvChapters">0</strong>Chapters</div>
+      <div class="item"><strong id="pvWords">0</strong>Total words</div>
+      <div class="item"><strong id="pvSource">—</strong>Source</div>
+    </div>
+
+    <div class="preview-body" id="pvBody"></div>
+
+    <div class="chapter-list" id="pvChapterList"></div>
+
+    <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn primary" id="processBtn">Process Chapter 1 →</button>
+      <button class="btn ghost" id="cancelBtn">Discard</button>
+    </div>
+  </div>
+
+  <!-- ── Results ──────────────────────────────────────────────── -->
+  <div class="panel" id="resultPanel" style="display:none;">
+    <h2 id="resultTitle">Chapter 1</h2>
+    <p class="subtitle" id="resultSubtitle">Entities & connections</p>
+
+    <div class="result-grid">
+      <div>
+        <h3 style="margin:4px 0 10px; font-size:15px; color:var(--gold);">Entities <span id="entityCount" style="color:var(--ink-muted); font-size:12px;"></span></h3>
+        <div id="entityList"></div>
+      </div>
+      <div>
+        <h3 style="margin:4px 0 10px; font-size:15px; color:var(--red-string-glow);">Connections <span id="edgeCount" style="color:var(--ink-muted); font-size:12px;"></span></h3>
+        <div id="edgeList"></div>
+      </div>
+    </div>
+
+    <details class="raw-json">
+      <summary>Raw JSON (Step 1 · Step 2)</summary>
+      <pre id="rawJson"></pre>
+    </details>
+
+    <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <button class="btn ghost" id="reprocessBtn" title="Ignore cache and rerun both AI calls">↻ Reprocess</button>
+      <span style="font-size:11px; color:var(--ink-muted);">Cached in <code style="background:rgba(0,0,0,0.35); padding:1px 6px; border-radius:4px; color:var(--gold);">vault_board</code>. Phase 2 will turn this into the interactive corkboard.</span>
+    </div>
+  </div>
+
+  <footer class="foot">
+    Inglenook · The Board · Phase 1 pipeline · Powered by OpenRouter (free-tier models with auto-fallback)
+  </footer>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   THE BOARD — Phase 1 pipeline
+   Vanilla JS · shares vault_settings with reading-vault.html
+   ══════════════════════════════════════════════════════════════════ */
+
+// ── State ────────────────────────────────────────────────────────
+const State = {
+  settings: {},
+  vaultBoard: {},
+  preview: null,   // { title, source, sourceUrl, chapters, bookId }
+};
+
+// ── Storage helpers ──────────────────────────────────────────────
+function loadSettings() {
+  try { State.settings = JSON.parse(localStorage.getItem('vault_settings')) || {}; }
+  catch (e) { State.settings = {}; }
+}
+function loadBoardVault() {
+  try { State.vaultBoard = JSON.parse(localStorage.getItem('vault_board')) || {}; }
+  catch (e) { State.vaultBoard = {}; }
+}
+function saveBoardVault() {
+  localStorage.setItem('vault_board', JSON.stringify(State.vaultBoard));
+}
+
+// ── UI helpers ───────────────────────────────────────────────────
+function status(msg, kind = 'busy') {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status show ' + kind;
+  el.innerHTML = msg;
+  // Errors are useless if the user can't see them — always bring them into view.
+  if (kind === 'error') {
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+    console.error('[Board]', el.textContent);
+  }
+}
+function clearStatus() {
+  document.getElementById('statusMsg').className = 'status';
+}
+function slugify(s) {
+  return (s || 'untitled')
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 60) || 'untitled';
+}
+
+// djb2 hash → base36. Deterministic, small, collision-safe for our scale.
+function stableHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+// Same input (URL or title+text) always produces the same bookId, so
+// re-loading the same book hits the cache instead of piling up new entries.
+function stableBookId({ title, sourceUrl, rawText }) {
+  const identity = sourceUrl
+    ? `url::${sourceUrl}`
+    : `content::${(title || '').trim()}::${(rawText || '').slice(0, 500)}`;
+  return slugify(title) + '-' + stableHash(identity);
+}
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    clearStatus();
+  });
+});
+
+// ── HTML → text (matches reading-vault.html annStripHtml) ───────
+function stripHtml(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ── Chapter split (matches reading-vault.html annDetectChapters) ─
+function detectChapters(text, fallbackTitle) {
+  const re = /^(?:chapter|part|section|prologue|epilogue|introduction|preface|appendix)\s+(?:\d+|[ivxlcdm]+|[A-Z])\b.*$/gim;
+  const matches = [...text.matchAll(re)];
+  if (matches.length >= 2) {
+    const chs = [];
+    for (let i = 0; i < matches.length; i++) {
+      const s = matches[i].index;
+      const e = i + 1 < matches.length ? matches[i + 1].index : text.length;
+      const body = text.slice(s + matches[i][0].length, e).trim();
+      if (body.length > 50) chs.push({ name: matches[i][0].trim().substring(0, 80), text: body });
+    }
+    if (chs.length) return chs.slice(0, 30);
+  }
+  const words = text.split(/\s+/);
+  const chunks = [];
+  for (let i = 0; i < words.length; i += 600) {
+    const body = words.slice(i, i + 600).join(' ');
+    if (!body.trim()) continue;
+    chunks.push({ name: `Section ${Math.floor(i / 600) + 1}`, text: body });
+  }
+  return chunks.slice(0, 30);
+}
+
+// ── PDF extraction ───────────────────────────────────────────────
+async function extractPdf(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let full = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    full += content.items.map(it => it.str).join(' ') + '\n';
+  }
+  return full;
+}
+
+// ── Minimal EPUB unzip (matches reading-vault.html) ─────────────
+async function unzipEpub(buffer) {
+  const view = new Uint8Array(buffer);
+  const files = {};
+  let offset = 0;
+  while (offset < view.length - 4) {
+    const sig = view[offset] | (view[offset + 1] << 8) | (view[offset + 2] << 16) | (view[offset + 3] << 24);
+    if (sig !== 0x04034b50) break;
+    const compression = view[offset + 8] | (view[offset + 9] << 8);
+    const compSize = view[offset + 18] | (view[offset + 19] << 8) | (view[offset + 20] << 16) | (view[offset + 21] << 24);
+    const nameLen = view[offset + 26] | (view[offset + 27] << 8);
+    const extraLen = view[offset + 28] | (view[offset + 29] << 8);
+    const name = new TextDecoder().decode(view.slice(offset + 30, offset + 30 + nameLen));
+    const dataStart = offset + 30 + nameLen + extraLen;
+    const compData = view.slice(dataStart, dataStart + compSize);
+    try {
+      if (compression === 0) {
+        files[name] = compData;
+      } else if (compression === 8) {
+        const ds = new DecompressionStream('deflate-raw');
+        const wr = ds.writable.getWriter();
+        const rd = ds.readable.getReader();
+        wr.write(compData); wr.close();
+        const chunks = []; let len = 0;
+        while (true) {
+          const { done, value } = await rd.read();
+          if (done) break;
+          chunks.push(value); len += value.length;
+        }
+        const out = new Uint8Array(len); let pos = 0;
+        for (const c of chunks) { out.set(c, pos); pos += c.length; }
+        files[name] = out;
+      }
+    } catch (e) { /* skip corrupt entries */ }
+    offset = dataStart + compSize;
+  }
+  return files;
+}
+async function extractEpub(file) {
+  const buf = await file.arrayBuffer();
+  const zip = await unzipEpub(buf);
+  const htmlFiles = Object.keys(zip)
+    .filter(n => /\.(html|xhtml|htm)$/i.test(n) && !/(toc|nav|ncx)/i.test(n))
+    .sort();
+  let full = '';
+  for (const fname of htmlFiles.slice(0, 60)) {
+    const raw = new TextDecoder().decode(zip[fname]);
+    const text = stripHtml(raw);
+    if (text.length < 80) continue;
+    // Insert a synthetic chapter marker so detectChapters can split.
+    const tm = raw.match(/<title[^>]*>([^<]+)<\/title>/i) || raw.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
+    const chTitle = tm ? stripHtml(tm[1]) : fname.split('/').pop().replace(/\.(html|xhtml|htm)$/i, '');
+    full += `\nChapter ${htmlFiles.indexOf(fname) + 1} — ${chTitle}\n\n${text}\n`;
+  }
+  return full;
+}
+
+// ── URL fetch ────────────────────────────────────────────────────
+function isGutenberg(url) {
+  return /(^|\/\/)([a-z0-9.-]*\.)?gutenberg\.org\//i.test(url);
+}
+function gutenbergTextUrl(url) {
+  // Turn a Gutenberg book page into its plain-text file, if we can find the id.
+  const m = url.match(/gutenberg\.org\/(?:ebooks|files|cache\/epub)\/(\d+)/i);
+  if (!m) return null;
+  const id = m[1];
+  // The canonical UTF-8 plain-text location:
+  return `https://www.gutenberg.org/files/${id}/${id}-0.txt`;
+}
+
+async function fetchUrlText(url) {
+  // Cascade of proxies. We try jina.ai first — it's an LLM-oriented reader
+  // that turns HTML, PDFs, even paywalled pages into clean markdown, and
+  // it reflects the request Origin in Access-Control-Allow-Origin so
+  // browser fetch just works. Fall back to allorigins for HTML if jina fails.
+
+  const errors = [];
+
+  // Gutenberg fast path: prefer their plain-text file.
+  const gutTxt = isGutenberg(url) ? gutenbergTextUrl(url) : null;
+
+  // 1) r.jina.ai reader — handles PDFs and HTML, returns markdown with
+  //    "Title: …\nURL Source: …\nNumber of Pages: …\nMarkdown Content:\n…"
+  for (const target of [gutTxt, url].filter(Boolean)) {
+    try {
+      const resp = await fetch(`https://r.jina.ai/${target}`, {
+        headers: { 'Accept': 'text/plain' }
+      });
+      if (!resp.ok) { errors.push(`jina ${resp.status} on ${target}`); continue; }
+      const md = await resp.text();
+      if (!md || md.length < 300) { errors.push(`jina thin (${md.length} chars) on ${target}`); continue; }
+
+      // Parse jina's header block off the top.
+      const titleMatch = md.match(/^Title:\s*(.+)$/mi);
+      const bodyIdx = md.search(/^Markdown Content:\s*$/mi);
+      let body = bodyIdx >= 0 ? md.slice(bodyIdx).replace(/^Markdown Content:\s*/i, '') : md;
+
+      // Strip markdown link syntax to keep the text clean for the LLM.
+      body = body
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')          // images
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')      // links
+        .replace(/^#{1,6}\s+/gm, '')                  // heading markers
+        .replace(/\*\*|__/g, '')                       // bold
+        .replace(/\r\n?/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      // If jina says the source was a PDF the "case.pdf" filename becomes
+      // the title. Try the first meaningful heading/line as a better title.
+      let title = titleMatch ? titleMatch[1].trim() : '';
+      if (!title || /\.pdf$/i.test(title) || title.length < 3) {
+        const firstLine = body.split('\n').map(l => l.trim()).find(l => l.length >= 4 && l.length <= 100);
+        if (firstLine) title = firstLine;
+      }
+
+      if (body.length >= 500) {
+        return { text: body, title, sourceUrl: target };
+      }
+      errors.push(`jina body too short (${body.length}) on ${target}`);
+    } catch (e) {
+      errors.push(`jina threw ${e.message} on ${target}`);
+    }
+  }
+
+  // 2) allorigins fallback — only useful for HTML/plain-text sources
+  //    that jina couldn't handle. Skips binary PDFs (jina is our PDF path).
+  const looksBinary = /\.pdf(\?|$)/i.test(url);
+  if (!looksBinary) {
+    for (const target of [gutTxt, url].filter(Boolean)) {
+      try {
+        const proxied = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`;
+        const resp = await fetch(proxied);
+        if (!resp.ok) { errors.push(`allorigins ${resp.status}`); continue; }
+        const data = await resp.json();
+        const contents = data && data.contents ? data.contents : '';
+        if (!contents) { errors.push('allorigins empty'); continue; }
+
+        const isPlain = /\.txt(\?|$)/i.test(target) || target === gutTxt;
+        let text, title;
+        if (isPlain) {
+          text = contents.replace(/\r\n/g, '\n').trim();
+          title = (text.split('\n').find(l => l.trim().length) || '').trim();
+        } else {
+          const titleMatch = contents.match(/<title[^>]*>([^<]+)<\/title>/i);
+          title = titleMatch ? stripHtml(titleMatch[1]) : '';
+          text = stripHtml(contents);
+        }
+        if (text && text.length >= 500) return { text, title, sourceUrl: target };
+        errors.push(`allorigins thin (${text.length}) on ${target}`);
+      } catch (e) {
+        errors.push(`allorigins threw ${e.message}`);
+      }
+    }
+  }
+
+  throw new Error(errors.join(' · ') || 'All fetch strategies failed');
+}
+
+// ── Preview ──────────────────────────────────────────────────────
+function buildPreview({ title, source, sourceUrl, rawText }) {
+  const chapters = detectChapters(rawText, title);
+  // Word-boundary matcher handles contractions ("don't" = 1 word), punctuation-
+  // adjacent words, and mixed whitespace correctly — matches what word processors
+  // report and avoids the whitespace-split undercount.
+  const wordCount = (rawText.match(/[A-Za-z0-9]+(?:['\u2019\-][A-Za-z0-9]+)*/g) || []).length;
+
+  const bookId = stableBookId({ title, sourceUrl, rawText });
+
+  State.preview = { title, source, sourceUrl, chapters, bookId, wordCount };
+
+  document.getElementById('pvTitle').textContent = title || 'Untitled';
+  document.getElementById('pvChapters').textContent = chapters.length;
+  document.getElementById('pvWords').textContent = wordCount.toLocaleString();
+  document.getElementById('pvSource').textContent = source;
+  document.getElementById('pvBody').textContent = rawText.slice(0, 300) + (rawText.length > 300 ? '…' : '');
+
+  const list = document.getElementById('pvChapterList');
+  list.innerHTML = chapters.slice(0, 20)
+    .map((c, i) => `<span class="chip">${i + 1}. ${escapeHtml(c.name)}</span>`)
+    .join('') + (chapters.length > 20 ? `<span class="chip">+${chapters.length - 20} more</span>` : '');
+
+  document.getElementById('previewPanel').style.display = 'block';
+  document.getElementById('resultPanel').style.display = 'none';
+  document.getElementById('previewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Input handlers ───────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  status(`Reading <b>${escapeHtml(file.name)}</b><span class="dots"></span>`, 'busy');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let rawText;
+    if (ext === 'pdf') rawText = await extractPdf(file);
+    else if (ext === 'epub') rawText = await extractEpub(file);
+    else rawText = await file.text();
+
+    if (!rawText || rawText.trim().length < 200) throw new Error('Extracted text too short — file may be image-only or corrupted.');
+
+    const title = file.name.replace(/\.(pdf|epub|txt)$/i, '');
+    buildPreview({ title, source: 'file', sourceUrl: null, rawText });
+    status(`Ready to process.`, 'ok');
+  } catch (err) {
+    status(`Failed to read file: ${escapeHtml(err.message)}`, 'error');
+  }
+});
+
+document.getElementById('urlFetchBtn').addEventListener('click', async () => {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { status('Paste a URL first.', 'error'); return; }
+  if (!/^https?:\/\//i.test(url)) { status('URL must start with http:// or https://', 'error'); return; }
+
+  status(`Fetching <b>${escapeHtml(url)}</b><span class="dots"></span>`, 'busy');
+  try {
+    const { text, title, sourceUrl } = await fetchUrlText(url);
+    const cleanTitle = (title || url.replace(/^https?:\/\//, '').split('/')[0]).slice(0, 100);
+    buildPreview({ title: cleanTitle, source: 'url', sourceUrl, rawText: text });
+    status(`Fetched ${text.length.toLocaleString()} characters. Ready to process.`, 'ok');
+  } catch (err) {
+    status(
+      `Couldn't read this URL — it may be behind a paywall, require login, or be a JavaScript-rendered app. ` +
+      `Try downloading the file and uploading it directly, or paste the text manually. ` +
+      `<span style="opacity:.6">(${escapeHtml(err.message)})</span>`,
+      'error'
+    );
+  }
+});
+
+document.getElementById('pasteLoadBtn').addEventListener('click', () => {
+  const text = document.getElementById('pasteInput').value.trim();
+  const title = document.getElementById('pasteTitle').value.trim() || 'Pasted fragment';
+  if (text.length < 200) { status('Paste at least a few paragraphs (200+ characters).', 'error'); return; }
+  buildPreview({ title, source: 'paste', sourceUrl: null, rawText: text });
+  status(`Ready to process.`, 'ok');
+});
+
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  State.preview = null;
+  document.getElementById('previewPanel').style.display = 'none';
+  document.getElementById('resultPanel').style.display = 'none';
+  clearStatus();
+});
+
+// ══════════════════════════════════════════════════════════════════
+// ENGINE LAYER — each engine implements processChapter(chapter)
+// returning { entities, edges, summary, tension }.
+// The rest of the app is engine-agnostic.
+// ══════════════════════════════════════════════════════════════════
+
+// Shared prompts (used by every LLM engine — OpenRouter/Ollama/WebLLM)
+const SYS_ENTITIES = `You are a literary analyst. Extract all named entities from this chapter. Return ONLY valid JSON, no markdown, no preamble.
+Schema: { "chapter": "chapter title", "entities": [ { "id": "unique_snake_case_id", "name": "display name", "type": "person|place|organisation|event|object", "description": "one sentence about this entity in this chapter", "first_appearance": "quote of first mention under 15 words" } ], "summary": "two sentence chapter summary", "tension": 1-10 rating of drama/tension in this chapter }`;
+
+const SYS_EDGES = `You are a literary analyst mapping connections between entities. Given these entities from a chapter, identify which ones are connected and how. Return ONLY valid JSON.
+Schema: { "edges": [ { "source": "entity_id", "target": "entity_id", "relationship": "one phrase e.g. suspects, employs, loves, opposes, visits", "strength": 1-3 (1=mentioned together, 2=interact, 3=pivotal connection), "chapter": "chapter title" } ] }`;
+
+function slimEntities(entities) {
+  return entities.map(e => ({ id: e.id, name: e.name, type: e.type }));
+}
+
+function extractJson(str) {
+  const cleaned = String(str || '')
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+  const m = cleaned.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('no JSON in reply');
+  return JSON.parse(m[0]);
+}
+
+// ── Engine 1: OpenRouter ────────────────────────────────────────
+const OPENROUTER_MODELS = [
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'openai/gpt-oss-120b:free',
+  'google/gemma-4-31b-it:free',
+  'openai/gpt-oss-20b:free'
+];
+
+async function callOpenRouter(systemPrompt, userMessage) {
+  const key = State.settings.openrouterKey;
+  if (!key) throw new Error('No OpenRouter API key. Set it in Reading Vault settings, or pick a different engine.');
+
+  const errors = [];
+  for (const model of OPENROUTER_MODELS) {
+    let res, rawText;
+    try {
+      res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': location.origin || 'https://inglenook.local',
+          'X-Title': 'Inglenook — The Board'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userMessage }
+          ],
+          temperature: 0.3,
+          response_format: { type: 'json_object' }
+        })
+      });
+      rawText = await res.text();
+    } catch (e) {
+      errors.push(`${model}: network ${e.message}`);
+      continue;
+    }
+
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { const j = JSON.parse(rawText); if (j?.error?.message) msg = j.error.message; } catch (_) {}
+      console.warn('[Board] OpenRouter', model, msg, rawText.slice(0, 400));
+      errors.push(`${model}: ${msg}`);
+      if (res.status === 401 || res.status === 403) break;
+      continue;
+    }
+
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch (_) { errors.push(`${model}: non-JSON`); continue; }
+    if (data.error) { errors.push(`${model}: ${data.error.message || 'provider error'}`); continue; }
+
+    const content = data?.choices?.[0]?.message?.content || '';
+    try {
+      const parsed = extractJson(content);
+      State.lastModel = 'OpenRouter · ' + model;
+      return parsed;
+    } catch (e) {
+      errors.push(`${model}: ${e.message}`);
+      console.warn('[Board] OpenRouter', model, 'bad JSON:', content.slice(0, 400));
+      continue;
+    }
+  }
+  throw new Error('All free OpenRouter models failed → ' + errors.join(' | '));
+}
+
+const OpenRouterEngine = {
+  async processChapter(chapter) {
+    const step1 = await callOpenRouter(SYS_ENTITIES,
+      `Chapter: ${chapter.name}\n\n${chapter.text.slice(0, 3000)}`);
+    const entities = Array.isArray(step1.entities) ? step1.entities : [];
+    if (!entities.length) throw new Error('AI returned no entities. Try a longer or richer chapter.');
+    const step2 = await callOpenRouter(SYS_EDGES,
+      `Chapter: ${chapter.name}\nEntities: ${JSON.stringify(slimEntities(entities))}`);
+    return {
+      entities,
+      edges: Array.isArray(step2.edges) ? step2.edges : [],
+      summary: step1.summary || '',
+      tension: step1.tension || null
+    };
+  }
+};
+
+// ── Engine 2: Ollama (localhost) ────────────────────────────────
+async function callOllama(system, user) {
+  const model = (State.settings.ollamaModel || 'llama3.2:3b').trim();
+  const base = (State.settings.ollamaUrl || 'http://localhost:11434').replace(/\/+$/, '');
+  let resp;
+  try {
+    resp = await fetch(`${base}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+        format: 'json',
+        stream: false,
+        options: { temperature: 0.3 }
+      })
+    });
+  } catch (e) {
+    throw new Error(`Can't reach Ollama at ${base}. Is it running? Start with:  OLLAMA_ORIGINS=* ollama serve   (${e.message})`);
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    if (resp.status === 403 || /cors/i.test(body)) {
+      throw new Error(`Ollama blocked this origin (CORS). Restart with:  OLLAMA_ORIGINS=* ollama serve`);
+    }
+    if (resp.status === 404 || /model.*not found/i.test(body)) {
+      throw new Error(`Ollama doesn't have model "${model}". Pull it:  ollama pull ${model}`);
+    }
+    throw new Error(`Ollama HTTP ${resp.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  const content = data?.message?.content || '';
+  State.lastModel = 'Ollama · ' + model;
+  return extractJson(content);
+}
+
+const OllamaEngine = {
+  async processChapter(chapter) {
+    const step1 = await callOllama(SYS_ENTITIES,
+      `Chapter: ${chapter.name}\n\n${chapter.text.slice(0, 3000)}`);
+    const entities = Array.isArray(step1.entities) ? step1.entities : [];
+    if (!entities.length) throw new Error('Ollama returned no entities. Try a richer chapter.');
+    const step2 = await callOllama(SYS_EDGES,
+      `Chapter: ${chapter.name}\nEntities: ${JSON.stringify(slimEntities(entities))}`);
+    return {
+      entities,
+      edges: Array.isArray(step2.edges) ? step2.edges : [],
+      summary: step1.summary || '',
+      tension: step1.tension || null
+    };
+  }
+};
+
+// ── Engine 3: Offline (compromise.js) ───────────────────────────
+const OfflineEngine = {
+  async processChapter(chapter) {
+    if (!window.nlp) throw new Error('compromise.js failed to load — check your internet on first visit.');
+    const text = chapter.text.slice(0, 30000); // no LLM token limit here
+    const doc = nlp(text);
+
+    // Named entities per category
+    const uniq = (arr) => [...new Set(arr.map(s => s.trim()).filter(s => s.length > 2 && s.length < 60))];
+    const people = uniq(doc.people().out('array'));
+    const places = uniq(doc.places().out('array'));
+    const orgs   = uniq(doc.organizations().out('array'));
+
+    // Sentence split for co-occurrence and first-appearance quotes
+    const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.length > 0);
+
+    const entities = [];
+    const seen = new Set();
+    const addAll = (list, type) => list.forEach(name => {
+      const id = slugify(name);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const firstSent = sentences.find(s => s.includes(name)) || '';
+      entities.push({
+        id,
+        name,
+        type,
+        description: `${type[0].toUpperCase() + type.slice(1)} identified via offline NER.`,
+        first_appearance: firstSent.split(/\s+/).slice(0, 15).join(' ')
+      });
+    });
+    addAll(people, 'person');
+    addAll(places, 'place');
+    addAll(orgs, 'organisation');
+
+    // Co-occurrence edges: for each sentence, pair up entities present in it.
+    const nameById = Object.fromEntries(entities.map(e => [e.id, e.name]));
+    const coCount = new Map(); // key: "srcId||tgtId" (sorted), value: count
+    for (const sent of sentences) {
+      const present = entities.filter(e => sent.includes(e.name)).map(e => e.id);
+      for (let i = 0; i < present.length; i++) {
+        for (let j = i + 1; j < present.length; j++) {
+          const [a, b] = [present[i], present[j]].sort();
+          const k = a + '||' + b;
+          coCount.set(k, (coCount.get(k) || 0) + 1);
+        }
+      }
+    }
+    const edges = [...coCount.entries()]
+      .map(([k, count]) => {
+        const [source, target] = k.split('||');
+        return {
+          source,
+          target,
+          relationship: count >= 3 ? 'appears with (frequent)' : 'appears with',
+          strength: Math.min(3, Math.max(1, Math.ceil(count / 2))),
+          chapter: chapter.name
+        };
+      })
+      .sort((a, b) => b.strength - a.strength)
+      .slice(0, 60);
+
+    // Summary = first two sentences. Tension = punctuation density heuristic.
+    const summary = sentences.slice(0, 2).join(' ').slice(0, 300);
+    const excite = (text.match(/[!?]/g) || []).length;
+    const tension = Math.max(1, Math.min(10, Math.round((excite / Math.max(1, text.length / 1000)) * 2)));
+
+    State.lastModel = 'Offline · compromise.js';
+    return { entities, edges, summary, tension };
+  }
+};
+
+// ── Engine 4: WebLLM (in-browser, WebGPU) ───────────────────────
+async function ensureWebLLM() {
+  if (State.webllmEngine) return State.webllmEngine;
+  if (!('gpu' in navigator)) {
+    throw new Error('WebGPU not available in this browser. Use Chrome/Edge/Arc on desktop.');
+  }
+  const model = State.settings.webllmModel || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+  status(`Loading WebLLM library…<span class="dots"></span>`, 'busy');
+  const mod = await import('https://esm.run/@mlc-ai/web-llm');
+  status(`Loading ${escapeHtml(model)} — first time downloads the model (~700 MB – 2 GB, cached forever)…<span class="dots"></span>`, 'busy');
+  State.webllmEngine = await mod.CreateMLCEngine(model, {
+    initProgressCallback: (p) => {
+      const pct = Math.round((p.progress || 0) * 100);
+      status(`WebLLM loading: ${pct}% — ${escapeHtml((p.text || '').slice(0, 80))}<span class="dots"></span>`, 'busy');
+    }
+  });
+  State.lastModel = 'WebLLM · ' + model;
+  return State.webllmEngine;
+}
+
+// Streaming call with live token counter + elapsed timer so the user sees
+// generation actually happening. Returns the accumulated content string.
+async function callWebLLMStreaming(system, user, label) {
+  const engine = await ensureWebLLM();
+  const t0 = performance.now();
+  const stream = await engine.chat.completions.create({
+    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    temperature: 0.3,
+    response_format: { type: 'json_object' },
+    stream: true
+  });
+  let content = '';
+  let tokens = 0;
+  let lastRender = 0;
+  for await (const chunk of stream) {
+    const delta = chunk?.choices?.[0]?.delta?.content || '';
+    if (!delta) continue;
+    content += delta;
+    tokens++;
+    const now = performance.now();
+    if (now - lastRender > 200) {         // throttle DOM updates
+      lastRender = now;
+      const secs = ((now - t0) / 1000).toFixed(1);
+      const tps  = (tokens / ((now - t0) / 1000)).toFixed(1);
+      status(`<b>${label}</b> — ${tokens} tokens · ${secs}s · ${tps} tok/s<span class="dots"></span>`, 'busy');
+    }
+  }
+  return content;
+}
+
+const WebLLMEngine = {
+  // WebLLM is slow, so we do ONE combined call (entities + edges together)
+  // instead of two sequential ones — roughly halves wall-clock time.
+  async processChapter(chapter) {
+    const sys = `You are a literary analyst. Extract entities AND their connections from the given chapter in a single JSON response. Return ONLY valid JSON, no markdown, no preamble.
+Schema: {
+  "chapter": "chapter title",
+  "summary": "two-sentence chapter summary",
+  "tension": 1-10 drama rating,
+  "entities": [ { "id": "snake_case_id", "name": "display name", "type": "person|place|organisation|event|object", "description": "one sentence", "first_appearance": "quote under 15 words" } ],
+  "edges": [ { "source": "entity_id", "target": "entity_id", "relationship": "one phrase e.g. suspects, employs, opposes", "strength": 1-3, "chapter": "chapter title" } ]
+}
+Cap entities at 12 and edges at 20 for speed. Every edge source/target MUST refer to an entity id you defined.`;
+
+    // Cut input to 1500 chars for WebLLM — big enough for good extraction,
+    // small enough to keep the prompt under ~500 tokens.
+    const user = `Chapter: ${chapter.name}\n\n${chapter.text.slice(0, 1500)}`;
+
+    const raw = await callWebLLMStreaming(sys, user, `WebLLM · ${State.settings.webllmModel || 'Llama-3.2-1B'}`);
+    const parsed = extractJson(raw);
+    const entities = Array.isArray(parsed.entities) ? parsed.entities : [];
+    if (!entities.length) throw new Error('WebLLM returned no entities. Try a richer chapter or a bigger model.');
+    return {
+      entities,
+      edges: Array.isArray(parsed.edges) ? parsed.edges : [],
+      summary: parsed.summary || '',
+      tension: parsed.tension || null
+    };
+  }
+};
+
+// ── Engine dispatch ─────────────────────────────────────────────
+function getEngine() {
+  const which = State.settings.boardEngine || 'openrouter';
+  switch (which) {
+    case 'ollama':  return { name: 'ollama',     impl: OllamaEngine };
+    case 'offline': return { name: 'offline',    impl: OfflineEngine };
+    case 'webllm':  return { name: 'webllm',     impl: WebLLMEngine };
+    default:        return { name: 'openrouter', impl: OpenRouterEngine };
+  }
+}
+
+// ── Process Chapter 1 ───────────────────────────────────────────
+async function processChapterOne(force = false) {
+  if (!State.preview) return;
+
+  const { title, source, sourceUrl, chapters, bookId } = State.preview;
+  const chapter = chapters[0];
+  if (!chapter) { status('No chapters detected.', 'error'); return; }
+
+  // Cache check
+  const existing = State.vaultBoard[bookId];
+  if (!force && existing && existing.chapters?.[0]?.entities) {
+    renderResults(existing.chapters[0], existing.title);
+    status('Loaded cached result. Click <b>Reprocess</b> to rerun.', 'ok');
+    return;
+  }
+
+  const engine = getEngine();
+
+  // Engine-specific pre-flight check
+  if (engine.name === 'openrouter' && !State.settings.openrouterKey) {
+    document.getElementById('keyNudge').classList.add('show');
+    status('OpenRouter engine is selected but no API key is set. Add one in Reading Vault settings, or switch engines above.', 'error');
+    return;
+  }
+
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('processBtn').textContent = 'Working…';
+  // Yield to the browser so the "Working…" paint lands *before* the (potentially
+  // sub-5ms) synchronous Offline engine resolves. Two rAFs guarantee a full paint
+  // cycle across every engine timing.
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  try {
+    status(`Processing "${escapeHtml(chapter.name)}" via <b>${engine.name}</b><span class="dots"></span>`, 'busy');
+    const result = await engine.impl.processChapter(chapter);
+
+    const chapterRecord = {
+      title: chapter.name,
+      text: chapter.text.slice(0, 3000),
+      entities: result.entities,
+      edges: result.edges,
+      summary: result.summary || '',
+      tension: result.tension || null,
+      engine: engine.name,
+      model: State.lastModel || null,
+      marginNotes: null, // Phase 2
+      processedAt: new Date().toISOString()
+    };
+
+    State.vaultBoard[bookId] = {
+      title,
+      source,
+      sourceUrl,
+      createdAt: State.vaultBoard[bookId]?.createdAt || new Date().toISOString(),
+      chapters: [chapterRecord, ...(State.vaultBoard[bookId]?.chapters?.slice(1) || [])],
+      nodePositions: State.vaultBoard[bookId]?.nodePositions || {}
+    };
+    saveBoardVault();
+
+    renderResults(chapterRecord, title);
+    const modelNote = State.lastModel ? ` via <code>${escapeHtml(State.lastModel)}</code>` : '';
+    status(`Done. ${result.entities.length} entities, ${result.edges.length} connections${modelNote}. Cached under <code>vault_board</code>.`, 'ok');
+  } catch (err) {
+    console.error('[Board] processing failed:', err);
+    status(`Processing failed: ${escapeHtml(err.message)}`, 'error');
+  } finally {
+    document.getElementById('processBtn').disabled = false;
+    document.getElementById('processBtn').textContent = 'Process Chapter 1 →';
+  }
+}
+
+document.getElementById('processBtn').addEventListener('click', () => processChapterOne(false));
+document.getElementById('reprocessBtn').addEventListener('click', () => processChapterOne(true));
+
+// ── Render results ──────────────────────────────────────────────
+function renderResults(chapterRecord, bookTitle) {
+  const panel = document.getElementById('resultPanel');
+  panel.style.display = 'block';
+
+  document.getElementById('resultTitle').textContent = `${bookTitle} — ${chapterRecord.title}`;
+  document.getElementById('resultSubtitle').textContent =
+    (chapterRecord.summary ? chapterRecord.summary : 'Entities & connections')
+    + (chapterRecord.tension ? `  ·  Tension ${chapterRecord.tension}/10` : '');
+
+  const entities = chapterRecord.entities || [];
+  const edges = chapterRecord.edges || [];
+  const nameById = Object.fromEntries(entities.map(e => [e.id, e.name]));
+
+  document.getElementById('entityCount').textContent = `(${entities.length})`;
+  document.getElementById('edgeCount').textContent = `(${edges.length})`;
+
+  document.getElementById('entityList').innerHTML = entities.map(e => `
+    <div class="entity-card">
+      <span class="name">${escapeHtml(e.name || e.id)}</span>
+      <span class="type-pill type-${escapeHtml(e.type || 'object')}">${escapeHtml(e.type || 'entity')}</span>
+      <div class="desc">${escapeHtml(e.description || '')}</div>
+      ${e.first_appearance ? `<div class="quote">“${escapeHtml(e.first_appearance)}”</div>` : ''}
+    </div>
+  `).join('') || `<div class="entity-card" style="color:var(--ink-muted);">No entities returned.</div>`;
+
+  document.getElementById('edgeList').innerHTML = edges.map(e => `
+    <div class="edge-card">
+      <span class="src">${escapeHtml(nameById[e.source] || e.source)}</span>
+      <span class="rel">— ${escapeHtml(e.relationship || 'connected to')} →</span>
+      <span class="tgt">${escapeHtml(nameById[e.target] || e.target)}</span>
+      <span class="strength">${'●'.repeat(Math.max(1, Math.min(3, e.strength || 1)))}</span>
+    </div>
+  `).join('') || `<div class="edge-card" style="color:var(--ink-muted);">No connections returned.</div>`;
+
+  document.getElementById('rawJson').textContent = JSON.stringify({
+    step1: { chapter: chapterRecord.title, entities, summary: chapterRecord.summary, tension: chapterRecord.tension },
+    step2: { edges }
+  }, null, 2);
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Engine selector UI ──────────────────────────────────────────
+function refreshEngineUI() {
+  const which = State.settings.boardEngine || 'openrouter';
+  document.getElementById('engineSelect').value = which;
+  document.querySelectorAll('.engine-help').forEach(el => {
+    el.style.display = el.dataset.engine === which ? 'block' : 'none';
+  });
+  document.querySelectorAll('.engine-config').forEach(el => {
+    el.style.display = el.dataset.engine === which ? 'block' : 'none';
+  });
+  // The key nudge only matters for OpenRouter.
+  const needKey = which === 'openrouter' && !State.settings.openrouterKey;
+  document.getElementById('keyNudge').classList.toggle('show', needKey);
+}
+
+function saveEngineSetting(patch) {
+  State.settings = { ...State.settings, ...patch };
+  localStorage.setItem('vault_settings', JSON.stringify(State.settings));
+}
+
+document.getElementById('engineSelect').addEventListener('change', (e) => {
+  saveEngineSetting({ boardEngine: e.target.value });
+  refreshEngineUI();
+});
+document.getElementById('ollamaModel').addEventListener('change', (e) => {
+  saveEngineSetting({ ollamaModel: e.target.value.trim() || 'llama3.2:3b' });
+});
+document.getElementById('webllmModel').addEventListener('change', (e) => {
+  saveEngineSetting({ webllmModel: e.target.value });
+  // Force reload of engine next time — model changed.
+  State.webllmEngine = null;
+});
+document.getElementById('webllmSwitchOffline').addEventListener('click', (e) => {
+  e.preventDefault();
+  saveEngineSetting({ boardEngine: 'offline' });
+  refreshEngineUI();
+  status('Switched to Offline mode — instant, no downloads.', 'ok');
+});
+
+// ── Boot ────────────────────────────────────────────────────────
+loadSettings();
+loadBoardVault();
+
+// Hydrate engine controls from stored settings.
+if (State.settings.ollamaModel) document.getElementById('ollamaModel').value = State.settings.ollamaModel;
+if (State.settings.webllmModel) document.getElementById('webllmModel').value = State.settings.webllmModel;
+refreshEngineUI();
+</script>
+
+</body>
+</html>
